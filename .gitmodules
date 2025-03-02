@@ -1,0 +1,3 @@
+[submodule "HapticInstrumentWorkshop"]
+	path = HapticInstrumentWorkshop
+	url = git@github.com:davisonaudio/HapticInstrumentWorkshop.git
