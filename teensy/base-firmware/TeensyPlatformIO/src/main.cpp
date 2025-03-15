@@ -220,14 +220,14 @@ void loop() {
     // Wait for i2s (amp) channels to have content
     while (!queue_inL_i2s.available() || !queue_inR_i2s.available());
 
-    //Copy queue input buffers
-    if (queue_inL_usb.available() && queue_inR_usb.available())
-    { //This doesn't block on waiting for USB buffers because new buffers will not always be sent if there is no audio output. This would then block the whole programme indefinitely.
-        memcpy(buf_inL_usb, queue_inL_usb.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
-        memcpy(buf_inR_usb, queue_inR_usb.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
-        queue_inL_usb.freeBuffer();
-        queue_inR_usb.freeBuffer();
-    }
+    // Copy queue input buffers
+    // if (queue_inL_usb.available() && queue_inR_usb.available())
+    // { //This doesn't block on waiting for USB buffers because new buffers will not always be sent if there is no audio output. This would then block the whole programme indefinitely.
+    //     memcpy(buf_inL_usb, queue_inL_usb.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
+    //     memcpy(buf_inR_usb, queue_inR_usb.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
+    //     queue_inL_usb.freeBuffer();
+    //     queue_inR_usb.freeBuffer();
+    // }
 
     memcpy(buf_inL_i2s, queue_inL_i2s.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
     memcpy(buf_inR_i2s, queue_inR_i2s.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
@@ -249,34 +249,34 @@ void loop() {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {   
 
         //Convert all incoming samples from int16 to normalised float
-        sample_t usb_in_l = intToNormalised<teensy_sample_t>(buf_inL_usb[i]);
-        sample_t usb_in_r = intToNormalised<teensy_sample_t>(buf_inR_usb[i]);
+        // sample_t usb_in_l = intToNormalised<teensy_sample_t>(buf_inL_usb[i]);
+        // sample_t usb_in_r = intToNormalised<teensy_sample_t>(buf_inR_usb[i]);
         sample_t amp_in_voltage = intToNormalised<teensy_sample_t>(buf_inL_i2s[i]);
         sample_t amp_in_current = intToNormalised<teensy_sample_t>(buf_inR_i2s[i]);
 
         //Apply volume level (simple linear scaling currently - could be improved)
-        usb_in_l *= volume_level;
-        usb_in_r *= volume_level;
+        // usb_in_l *= volume_level;
+        // usb_in_r *= volume_level;
 
         //Cancel actuation signal from sensed signal
         TransducerFeedbackCancellation::UnprocessedSamples unprocessed;
-        unprocessed.output_to_transducer = usb_in_l;
+        unprocessed.output_to_transducer = amp_in_current;
         unprocessed.input_from_transducer = amp_in_current; //Current measurement from amp
         unprocessed.reference_input_loopback = amp_in_voltage; //Voltage measurement from amp
-        TransducerFeedbackCancellation::ProcessedSamples processed = transducer_processing.process(unprocessed);
+        // TransducerFeedbackCancellation::ProcessedSamples processed = transducer_processing.process(unprocessed);
 
         sample_t usb_out_l, usb_out_r, amp_out;
         if (current_error_state == ErrorStates::DEBUG)
         {
             usb_out_l = amp_in_current;
-            usb_out_r = processed.input_feedback_removed;
-            amp_out = usb_in_l;
+            usb_out_r = amp_in_current;
+            amp_out = amp_in_current* 2.0;
         }
         else
         {
-            usb_out_l = processed.input_feedback_removed;
-            usb_out_r = processed.input_feedback_removed;
-            amp_out = processed.output_to_transducer;
+            usb_out_l = amp_in_current;
+            usb_out_r = amp_in_current;
+            amp_out = amp_in_current* 2.0;
         }
 
         // Convert from normalised float back to int16 and add into output buffers
@@ -285,11 +285,11 @@ void loop() {
         bp_outL_usb[i] = normalisedToInt<teensy_sample_t>(usb_out_l);
         bp_outR_usb[i] = normalisedToInt<teensy_sample_t>(usb_out_r);
 
-        force_sensing.process(processed.input_feedback_removed, processed.output_to_transducer);
-        if (force_sensing.valueAvailable())
-        {
-            txForceSenseVal(force_sensing.getDamping());
-        }
+        // force_sensing.process(processed.input_feedback_removed, processed.output_to_transducer);
+        // if (force_sensing.valueAvailable())
+        // {
+        //     txForceSenseVal(force_sensing.getDamping());
+        // }
 
         total_sample_count++;
     }
