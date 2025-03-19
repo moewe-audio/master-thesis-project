@@ -29,6 +29,8 @@ namespace SerialCommands
     const char* kToneLevelString =  "tl";
     const char* kLowpassOutputFreq =  "lpo";
     const char* kLowpassInputFreq =  "lpi";
+
+    const char* chirp =  "chirp";
 }
 
 
