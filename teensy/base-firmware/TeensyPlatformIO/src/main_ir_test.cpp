@@ -184,7 +184,7 @@ void setup() {
 
     AudioMemory(512);
     sgtl5000_1.enable();
-    sgtl5000_1.volume(0.5);
+    sgtl5000_1.volume(0.8);
 
     force_sensing.setup();
 
@@ -210,7 +210,7 @@ void setup() {
     queue_inR_i2s.begin();
 
     printf("Setting up chirp tone\r\n");
-    chirpGen.init(20.f, 20000.f, 5.f, AUDIO_SAMPLE_RATE_EXACT);
+    chirpGen.init(20.f, 20000.f, 10.f, AUDIO_SAMPLE_RATE_EXACT);
     printf("Chirp tone set up\r\n");
 }
 

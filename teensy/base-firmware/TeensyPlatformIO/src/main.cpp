@@ -181,7 +181,7 @@ void setup() {
 
     AudioMemory(512);
     sgtl5000_1.enable();
-    sgtl5000_1.volume(0.5);
+    sgtl5000_1.volume(1);
 
     force_sensing.setup();
 
@@ -266,18 +266,10 @@ void loop() {
         // TransducerFeedbackCancellation::ProcessedSamples processed = transducer_processing.process(unprocessed);
 
         sample_t usb_out_l, usb_out_r, amp_out;
-        if (current_error_state == ErrorStates::DEBUG)
-        {
-            usb_out_l = amp_in_current;
-            usb_out_r = amp_in_current;
-            amp_out = amp_in_current* 2.0;
-        }
-        else
-        {
-            usb_out_l = amp_in_current;
-            usb_out_r = amp_in_current;
-            amp_out = amp_in_current* 2.0;
-        }
+
+        usb_out_l = amp_in_current;
+        usb_out_r = amp_in_voltage;
+        // amp_out = amp_in_current* 1.3;
 
         // Convert from normalised float back to int16 and add into output buffers
         bp_outL_i2s[i] = normalisedToInt<teensy_sample_t>(amp_out);
