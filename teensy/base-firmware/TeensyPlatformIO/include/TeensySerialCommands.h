@@ -30,6 +30,8 @@ namespace SerialCommands
     const char* kLowpassOutputFreq =  "lpo";
     const char* kLowpassInputFreq =  "lpi";
 
+    const char* kFeedbackBandpass =  "fbp";
+    const char* kOutputGain = "og";
     const char* chirp =  "chirp";
 }
 

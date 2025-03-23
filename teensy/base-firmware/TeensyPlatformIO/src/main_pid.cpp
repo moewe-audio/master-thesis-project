@@ -14,6 +14,7 @@
 #include "TeensySerialCommands.h"
 #include "MidiComms.h"
 #include "pid.h"
+#include "filter3rdO.h"
 
 #define teensy_sample_t int16_t
 
@@ -112,6 +113,12 @@ const float dt = 1.0f / AUDIO_SAMPLE_RATE_EXACT;
 
 PIDController pid(PP, PD, PDD, dt);
 
+ThirdOrderFilter feedbackFilter(AUDIO_SAMPLE_RATE_EXACT);
+ThirdOrderFilter feedbackFilter2(AUDIO_SAMPLE_RATE_EXACT);
+ThirdOrderFilter feedbackFilter3(AUDIO_SAMPLE_RATE_EXACT);
+ThirdOrderFilter feedbackFilter4(AUDIO_SAMPLE_RATE_EXACT);
+
+float outputGain = 1.0f;
 
 //Basic error states that can occur, used for debug prints and LED blink interval.
 enum class ErrorStates
@@ -214,6 +221,17 @@ void setup() {
     queue_inR_usb.begin();
     queue_inL_i2s.begin();
     queue_inR_i2s.begin();
+
+    // feedbackFilter.setCoefficients(-1.998184, 0.99843053, 0.00078473, 0.f, -0.00078473); // Bandpass 120hz, Q: 7
+    // feedbackFilter2.setCoefficients(-1.99425979, 0.99533083, 0.00233458, 0.f, -0.00233458); // Bandpass 230hz, Q: 7
+    // feedbackFilter.setCoefficients(-1.9939623811601523, 0.9951284359939072, 0.0024357820030463935, 0.0, -0.0024357820030463935);
+    feedbackFilter.setFilterParams(220.3f, 10.f);
+    // feedbackFilter3.setCoefficients(-1.9831627883306575, 0.9841730120573678, 0.007913493971316065, 0.0, -0.007913493971316065); // BP 225, Q: 2
+    // feedbackFilter3.setCoefficients(-1.99453865, 0.99552316, 0.00223842, 0.f, -0.00223842); // Bandpass 240hz, Q: 7
+    // feedbackFilter4.setFilterParams(224.f, 2.f);
+    // feedbackFilter4.setCoefficients(-1.99453865, 0.99552316, 0.00223842, 0.f, -0.00223842); // Bandpass 200hz, Q: 7
+    // feedbackFilter2.setCoefficients(-1.9841629, 0.98506235, 0.00746882, 0.f,  -0.00746882); // Bandpass 230hz, Q: 2
+    // feedbackFilter.setCoefficients(-1.98275923, 0.98304904, 0.99237207, -1.98275923, 0.99067697); // Notch 120hz
 }
 
 teensy_sample_t buf_inL_usb[AUDIO_BLOCK_SAMPLES];
@@ -229,15 +247,6 @@ void loop() {
     // Wait for i2s (amp) channels to have content
     while (!queue_inL_i2s.available() || !queue_inR_i2s.available());
 
-    // Copy queue input buffers
-    // if (queue_inL_usb.available() && queue_inR_usb.available())
-    // { //This doesn't block on waiting for USB buffers because new buffers will not always be sent if there is no audio output. This would then block the whole programme indefinitely.
-    //     memcpy(buf_inL_usb, queue_inL_usb.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
-    //     memcpy(buf_inR_usb, queue_inR_usb.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
-    //     queue_inL_usb.freeBuffer();
-    //     queue_inR_usb.freeBuffer();
-    // }
-
     memcpy(buf_inL_i2s, queue_inL_i2s.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
     memcpy(buf_inR_i2s, queue_inR_i2s.readBuffer(), sizeof(teensy_sample_t)*AUDIO_BLOCK_SAMPLES);
     
@@ -251,9 +260,6 @@ void loop() {
     bp_outL_usb = queue_outL_usb.getBuffer();
     bp_outR_usb = queue_outR_usb.getBuffer();
 
-    //Get User's volume setting
-    float volume_level = usb_in.volume(); //0.0 - 1.0
-
     //Loop through each sample in the buffers
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {   
 
@@ -263,36 +269,18 @@ void loop() {
         sample_t amp_in_voltage = intToNormalised<teensy_sample_t>(buf_inL_i2s[i]);
         sample_t amp_in_current = intToNormalised<teensy_sample_t>(buf_inR_i2s[i]);
 
-        //Apply volume level (simple linear scaling currently - could be improved)
-        // usb_in_l *= volume_level;
-        // usb_in_r *= volume_level;
-
-        //Cancel actuation signal from sensed signal
-        TransducerFeedbackCancellation::UnprocessedSamples unprocessed;
-        unprocessed.output_to_transducer = amp_in_current;
-        unprocessed.input_from_transducer = amp_in_current; //Current measurement from amp
-        unprocessed.reference_input_loopback = amp_in_voltage; //Voltage measurement from amp
-        // TransducerFeedbackCancellation::ProcessedSamples processed = transducer_processing.process(unprocessed);
-
-        
-
         sample_t usb_out_l, usb_out_r, amp_out;
-        sample_t out  = pid.processSample(amp_in_current);
+        // sample_t out  = pid.processSample(amp_in_current);
+        sample_t out = feedbackFilter.process(amp_in_current * 3.0);
         usb_out_l = amp_in_current;
-        usb_out_r = out;
-        amp_out = out;
+        usb_out_r = out * outputGain;
+        amp_out = out * outputGain;
 
         // Convert from normalised float back to int16 and add into output buffers
         bp_outL_i2s[i] = normalisedToInt<teensy_sample_t>(amp_out);
         bp_outR_i2s[i] = normalisedToInt<teensy_sample_t>(amp_out);
         bp_outL_usb[i] = normalisedToInt<teensy_sample_t>(usb_out_l);
         bp_outR_usb[i] = normalisedToInt<teensy_sample_t>(usb_out_r);
-
-        // force_sensing.process(processed.input_feedback_removed, processed.output_to_transducer);
-        // if (force_sensing.valueAvailable())
-        // {
-        //     txForceSenseVal(force_sensing.getDamping());
-        // }
 
         total_sample_count++;
     }
@@ -431,7 +419,8 @@ void processSerialInput(char new_char)
     {
 
         char* parameter_arg = strtok(serial_input_buffer, " "); //Split input string on space
-        char* value_arg = strtok(NULL, " ");
+        char* value_arg1 = strtok(NULL, " "); // First argument
+        char* value_arg2 = strtok(NULL, " "); // Second argument
 
         if (!strncmp(parameter_arg, SerialCommands::kDebugModeString, strlen(SerialCommands::kDebugModeString)))
         {
@@ -467,104 +456,118 @@ void processSerialInput(char new_char)
         }
         
         else
-        { //Check for arguments that have value parameters
-            
-
-            //Check for resonant frequency command
+        {
             if (!strncmp(parameter_arg, SerialCommands::kResonantFreqString, strlen(SerialCommands::kResonantFreqString)))
             {
-                if (value_arg)
-                { //Set the resonant frequency to the provided value
-                    setResonantFrequency(atof(value_arg));
-                    printf("Resonant frequency set to: %fHz\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    setResonantFrequency(atof(value_arg1));
+                    printf("Resonant frequency set to: %fHz\r\n", atof(value_arg1));
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
                     printf("%f\n", current_cancellation_setup.resonant_frequency_hz);
                 }
             }
-
-            //Check for tone level command
-            else if (!strncmp(parameter_arg, SerialCommands::kToneLevelString, strlen(SerialCommands::kToneLevelString)))
+            if (!strncmp(parameter_arg, SerialCommands::kOutputGain, strlen(SerialCommands::kOutputGain)))
             {
-                if (value_arg)
-                { //Set the resonant frequency to the provided value
-                    setToneLevel(atof(value_arg));
-                    printf("Tone level set to: %fdB\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    outputGain = atof(value_arg1);
+                    printf("Output gain set to: %f\r\n", outputGain);
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
+                    printf("Current output gain:%f\n", outputGain);
+                }
+            }
+            if (!strncmp(parameter_arg, SerialCommands::kFeedbackBandpass, strlen(SerialCommands::kFeedbackBandpass)))
+            {
+                if (value_arg1 && value_arg2)
+                {
+                    float freq = atof(value_arg1);
+                    float q = atof(value_arg2);
+                    printf("Setting bandpass filter: Frequency = %f Hz, Q = %f\r\n", freq, q);
+                    feedbackFilter.setFilterParams(freq, q);
+                }
+                else
+                {
+                    printf("Current parameters are: Frequency = %f Hz, Q = %f\r\n", feedbackFilter.getFc(), feedbackFilter.getQ());
+                    printf("Error: Missing arguments. Usage: %s <frequency> <Q>\r\n", SerialCommands::kFeedbackBandpass);
+                }
+            }
+            else if (!strncmp(parameter_arg, SerialCommands::kToneLevelString, strlen(SerialCommands::kToneLevelString)))
+            {
+                if (value_arg1)
+                {
+                    setToneLevel(atof(value_arg1));
+                    printf("Tone level set to: %fdB\r\n", atof(value_arg1));
+                }
+                else
+                {
                     printf("%f\n", current_cancellation_setup.resonance_tone_level_db);
                 }
             }
-
-
-            //Check for resonance q command
             else if (!strncmp(parameter_arg, SerialCommands::kResonantQString, strlen(SerialCommands::kResonantQString)))
             {
-                if (value_arg)
-                { //Set the resonance q to the provided value
-                    setResonanceQ(atof(value_arg));
-                    printf("Resonance q set to: %f\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    setResonanceQ(atof(value_arg1));
+                    printf("Resonance q set to: %f\r\n", atof(value_arg1));
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
                     printf("%f\n", current_cancellation_setup.resonance_q);
                 }
             }
 
-            //Check for resonance gain command
             else if (!strncmp(parameter_arg, SerialCommands::kResonantGainString, strlen(SerialCommands::kResonantGainString)))
             {
-                if (value_arg)
-                { //Set the resonance q to the provided value
-                    setResonanceGain(atof(value_arg));
-                    printf("Resonance gain set to: %fdB\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    setResonanceGain(atof(value_arg1));
+                    printf("Resonance gain set to: %fdB\r\n", atof(value_arg1));
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
                     printf("%f\n", current_cancellation_setup.resonance_peak_gain_db);
                 }
             }
 
-            //Check for wideband gain command
             else if (!strncmp(parameter_arg, SerialCommands::kWidebandGainString, strlen(SerialCommands::kWidebandGainString)))
             {
-                if (value_arg)
-                { //Set the resonance q to the provided value
-                    setWidebandGain(atof(value_arg));
-                    printf("Wideband gain set to: %fdB\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    setWidebandGain(atof(value_arg1));
+                    printf("Wideband gain set to: %fdB\r\n", atof(value_arg1));
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
                     printf("%f\n", current_cancellation_setup.transducer_input_wideband_gain_db);
                 }
             }
-
-            //Check for output lowpass cutoff command
             else if (!strncmp(parameter_arg, SerialCommands::kLowpassOutputFreq, strlen(SerialCommands::kLowpassOutputFreq)))
             {
-                if (value_arg)
-                { //Set the resonance q to the provided value
-                    setOutputLowpassFc(atof(value_arg));
-                    printf("Output lowpass cutoff frequency set to: %fHz\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    setOutputLowpassFc(atof(value_arg1));
+                    printf("Output lowpass cutoff frequency set to: %fHz\r\n", atof(value_arg1));
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
                     printf("%f\n", current_cancellation_setup.output_to_transducer_lpf_cutoff_hz);
                 }
             }
 
-            //Check for wideband gain command
             else if (!strncmp(parameter_arg, SerialCommands::kLowpassInputFreq, strlen(SerialCommands::kLowpassInputFreq)))
             {
-                if (value_arg)
-                { //Set the resonance q to the provided value
-                    setInputLowpassFc(atof(value_arg));
-                    printf("Input lowpass cutoff frequency set to: %fHz\r\n", atof(value_arg));
+                if (value_arg1)
+                {
+                    setInputLowpassFc(atof(value_arg1));
+                    printf("Input lowpass cutoff frequency set to: %fHz\r\n", atof(value_arg1));
                 }
                 else
-                { //If value_arg = NULL then no value provided, return current value
+                {
                     printf("%f\n", current_cancellation_setup.input_from_transducer_lpf_cutoff_hz);
                 }
             }
