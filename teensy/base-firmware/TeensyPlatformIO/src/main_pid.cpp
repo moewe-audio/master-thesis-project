@@ -113,10 +113,7 @@ const float dt = 1.0f / AUDIO_SAMPLE_RATE_EXACT;
 
 PIDController pid(PP, PD, PDD, dt);
 
-ThirdOrderFilter feedbackFilter(AUDIO_SAMPLE_RATE_EXACT);
-ThirdOrderFilter feedbackFilter2(AUDIO_SAMPLE_RATE_EXACT);
-ThirdOrderFilter feedbackFilter3(AUDIO_SAMPLE_RATE_EXACT);
-ThirdOrderFilter feedbackFilter4(AUDIO_SAMPLE_RATE_EXACT);
+std::vector<ThirdOrderFilter> feedbackFilters;
 
 float outputGain = 1.0f;
 
@@ -225,7 +222,11 @@ void setup() {
     // feedbackFilter.setCoefficients(-1.998184, 0.99843053, 0.00078473, 0.f, -0.00078473); // Bandpass 120hz, Q: 7
     // feedbackFilter2.setCoefficients(-1.99425979, 0.99533083, 0.00233458, 0.f, -0.00233458); // Bandpass 230hz, Q: 7
     // feedbackFilter.setCoefficients(-1.9939623811601523, 0.9951284359939072, 0.0024357820030463935, 0.0, -0.0024357820030463935);
-    feedbackFilter.setFilterParams(220.3f, 10.f);
+    for (int i = 0; i < 2; i++)
+    {
+        feedbackFilters.push_back(ThirdOrderFilter(AUDIO_SAMPLE_RATE_EXACT));
+        feedbackFilters[i].setFilterParams(220.3f, 10.f);
+    }
     // feedbackFilter3.setCoefficients(-1.9831627883306575, 0.9841730120573678, 0.007913493971316065, 0.0, -0.007913493971316065); // BP 225, Q: 2
     // feedbackFilter3.setCoefficients(-1.99453865, 0.99552316, 0.00223842, 0.f, -0.00223842); // Bandpass 240hz, Q: 7
     // feedbackFilter4.setFilterParams(224.f, 2.f);
@@ -271,7 +272,12 @@ void loop() {
 
         sample_t usb_out_l, usb_out_r, amp_out;
         // sample_t out  = pid.processSample(amp_in_current);
-        sample_t out = feedbackFilter.process(amp_in_current * 3.0);
+        sample_t out = 0.f;
+        for (int j = 0; j < feedbackFilters.size(); j++)
+        {
+            out += feedbackFilters[j].process(amp_in_current);
+        }
+        out *= 0.25f;
         usb_out_l = amp_in_current;
         usb_out_r = out * outputGain;
         amp_out = out * outputGain;
@@ -421,6 +427,7 @@ void processSerialInput(char new_char)
         char* parameter_arg = strtok(serial_input_buffer, " "); //Split input string on space
         char* value_arg1 = strtok(NULL, " "); // First argument
         char* value_arg2 = strtok(NULL, " "); // Second argument
+        char* value_arg3 = strtok(NULL, " "); // Third argument
 
         if (!strncmp(parameter_arg, SerialCommands::kDebugModeString, strlen(SerialCommands::kDebugModeString)))
         {
@@ -483,17 +490,31 @@ void processSerialInput(char new_char)
             }
             if (!strncmp(parameter_arg, SerialCommands::kFeedbackBandpass, strlen(SerialCommands::kFeedbackBandpass)))
             {
-                if (value_arg1 && value_arg2)
+                if (value_arg1 && value_arg2 && value_arg3)
                 {
-                    float freq = atof(value_arg1);
-                    float q = atof(value_arg2);
-                    printf("Setting bandpass filter: Frequency = %f Hz, Q = %f\r\n", freq, q);
-                    feedbackFilter.setFilterParams(freq, q);
+                    float freq = atof(value_arg2);
+                    float q = atof(value_arg3);
+                    int idx = atoi(value_arg1);
+                    if (idx >= feedbackFilters.size())
+                    {
+                        printf("Error: Invalid filter index. Max index is %i\r\n", feedbackFilters.size() - 1);
+                    } else 
+                    {
+                        printf("Setting bandpass filter %i: Frequency = %f Hz, Q = %f\r\n", idx, freq, q);
+                        feedbackFilters[idx].setFilterParams(freq, q);
+                    }
                 }
                 else
                 {
-                    printf("Current parameters are: Frequency = %f Hz, Q = %f\r\n", feedbackFilter.getFc(), feedbackFilter.getQ());
-                    printf("Error: Missing arguments. Usage: %s <frequency> <Q>\r\n", SerialCommands::kFeedbackBandpass);
+                    if (value_arg1)
+                    {
+                        int idx = atoi(value_arg1);                   
+                        if (idx < feedbackFilters.size())
+                        {
+                            printf("Current parameters are: Frequency = %f Hz, Q = %f\r\n", feedbackFilters[idx].getFc(), feedbackFilters[idx].getQ());
+                        }
+                    }
+                    printf("Error: Missing arguments. Usage: %s <idx> <frequency> <Q>\r\n", SerialCommands::kFeedbackBandpass);
                 }
             }
             else if (!strncmp(parameter_arg, SerialCommands::kToneLevelString, strlen(SerialCommands::kToneLevelString)))
