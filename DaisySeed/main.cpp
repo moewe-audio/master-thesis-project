@@ -1,28 +1,38 @@
 #include "daisy_seed.h"
+#include "daisysp.h"
 #include "include/max98389.h"
 
-// Use the daisy namespace to prevent having to type
-// daisy:: before all libdaisy functions
+using namespace daisysp;
 using namespace daisy;
-// Declare a DaisySeed object called hardware
+
 DaisySeed hardware;
 
 max98389 amp;
+static Oscillator osc;
+
+void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
+{
+    float sig;
+    for(size_t i = 0; i < size; i++)
+    {
+        sig = osc.Process();
+
+        // left out
+        out[0][i] = in[2][i];
+        out[1][i] = in[3][i];
+        // right out
+        // out[2][i] = sig;
+        // out[3][i] = sig;
+
+    }
+}
 
 int main(void)
 {
-    // Declare a variable to store the state we want to set for the LED.
-    bool led_state;
-    led_state = true;
-
-    // Configure and Initialize the Daisy Seed
-    // These are separate to allow reconfiguration of any of the internal
-    // components before initialization.
     hardware.Configure();
     hardware.Init();
     hardware.StartLog(false);
     System::Delay(500);
-    // setup the configuration
     
     if (!amp.init())
     {
@@ -30,15 +40,44 @@ int main(void)
         return -1;
     }
 
-    // Loop forever
-    for(;;)
-    {
-        // Set the onboard LED
-        hardware.SetLed(led_state);
+    SaiHandle external_sai_handle;
+    SaiHandle::Config external_sai_cfg;
+    external_sai_cfg.periph          = SaiHandle::Config::Peripheral::SAI_2;
+    external_sai_cfg.sr              = SaiHandle::Config::SampleRate::SAI_48KHZ;
+    external_sai_cfg.bit_depth       = SaiHandle::Config::BitDepth::SAI_32BIT;
+    external_sai_cfg.a_sync          = SaiHandle::Config::Sync::SLAVE;
+    external_sai_cfg.a_dir           = SaiHandle::Config::Direction::RECEIVE;
+    external_sai_cfg.b_sync          = SaiHandle::Config::Sync::MASTER;
+    external_sai_cfg.b_dir           = SaiHandle::Config::Direction::TRANSMIT;
+    external_sai_cfg.pin_config.fs   = seed::D27;
+    external_sai_cfg.pin_config.mclk  = seed::D24;
+    external_sai_cfg.pin_config.sck  = seed::D28;
+    external_sai_cfg.pin_config.sb   = seed::D25;
+    external_sai_cfg.pin_config.sa   = seed::D26;
 
-        // Toggle the LED state for the next time around.
-        led_state = !led_state;
-        // Wait 500ms
-        System::Delay(1500);
+
+    /** Initialize the SAI new handle */
+    external_sai_handle.Init(external_sai_cfg);
+
+    if (!external_sai_handle.IsInitialized())
+    {
+        return -1;
     }
+
+    AudioHandle::Config audio_cfg;
+    audio_cfg.blocksize  = 4;
+    audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
+    audio_cfg.postgain   = 3.f;
+
+    hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
+    hardware.StartAudio(AudioCallback); 
+
+    osc.Init(hardware.AudioSampleRate());
+    osc.SetWaveform(osc.WAVE_SIN);
+    osc.SetFreq(440);
+    osc.SetAmp(0.5);
+
+    hardware.SetLed(true);
+
+    while (true) { }
 }

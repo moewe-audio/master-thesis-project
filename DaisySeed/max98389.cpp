@@ -22,7 +22,7 @@ bool max98389::init()
     {
         return false;
     }
-    uint8_t data = 0b11000000;
+    uint8_t data = 0b11000000; // 32 bit
     result = device.WriteDataAtAddress(slave_address, pcm_mode_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -34,7 +34,7 @@ bool max98389::init()
     {
         return false;
     }
-    data = 0x47;
+    data = 0b01011000; // 24 khZ I/V ; 48kHz audio
     result = device.WriteDataAtAddress(slave_address, pcm_sample_rate_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
