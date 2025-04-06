@@ -15,7 +15,6 @@ bool max98389::init()
     {
         return false;
     }
-
     uint8_t revisionId;
     auto result = device.ReadDataAtAddress(slave_address, revision_id_register, 2, &revisionId, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK || revisionId != expected_revision_id)
