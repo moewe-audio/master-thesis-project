@@ -20,16 +20,16 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     for(size_t i = 0; i < size; i++)
     {
         oscOut = osc.Process();
-        amp_in_current = in[3][i];
-        amp_in_voltage = in[2][i];
+        // amp_in_current = in[3][i];
+        // amp_in_voltage = in[2][i];
         // int32_t cur_32 = f2s32(amp_in_current);
         // int16_t cur_16 = static_cast<int16_t>(cur_32 >> 16);
         // amp_in_current = s162f(cur_16);
         // float filtered = bp1->process(amp_in_current);
         out[0][i] = oscOut;
-        // out[1][i] = amp_in_current * 100.f;
-        out[2][i] = oscOut *  100.f;
-        // out[2][i] = 10.f * in[0][i];
+        out[1][i] = oscOut;
+        out[2][i] = oscOut;
+        out[3][i] = oscOut;
     }
 }
 
@@ -79,8 +79,8 @@ int main(void)
         return -1;
     }
 
-    bp1 = new ThirdOrderFilter(hardware.AudioSampleRate());
-    bp1->setFilterParams(228.8f, 10.f);
+    // bp1 = new ThirdOrderFilter(hardware.AudioSampleRate());
+    // bp1->setFilterParams(228.8f, 10.f);
     // bp1->setFilterParams(400.8f, 10.f);
 
     osc.Init(hardware.AudioSampleRate());
