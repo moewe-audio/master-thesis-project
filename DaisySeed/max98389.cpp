@@ -33,7 +33,7 @@ bool max98389::init()
     {
         return false;
     }
-    data = 0b01011000; // 24 khZ I/V ; 48kHz audio
+    data = 0b10001000; // 48 khZ I/V ; 48kHz audio
     result = device.WriteDataAtAddress(slave_address, pcm_sample_rate_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
