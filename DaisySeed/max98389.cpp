@@ -105,6 +105,12 @@ bool max98389::init()
     {
         return false;
     }
+    data = 0b00010000; // enable I/V dither
+    result = device.WriteDataAtAddress(slave_address, iv_data_dsp_control, 2, &data, 1, TIMEOUT);
+    if (result != I2CHandle::Result::OK)
+    {
+        return false;
+    }
     data = 0x00;
     for(uint16_t i = 0; i < 7; i++){
         device.WriteDataAtAddress(slave_address, (uint16_t)(tx_hi_z_control1+i), 2, &data, 1, TIMEOUT);
