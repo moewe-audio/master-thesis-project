@@ -81,6 +81,24 @@ bool max98389::init()
     {
         return false;
     }
+    data = 0b00011000; // enable amp ramp up and down
+    result = device.WriteDataAtAddress(slave_address, speaker_channel_cfg, 2, &data, 1, TIMEOUT);
+    if (result != I2CHandle::Result::OK)
+    {
+        return false;
+    }
+    data = 0b0000000; // 0dB digital attenuation
+    result = device.WriteDataAtAddress(slave_address, speaker_dig_vol_output_cfg, 2, &data, 1, TIMEOUT);
+    if (result != I2CHandle::Result::OK)
+    {
+        return false;
+    }
+    data = 0b0011101; // amplfier output: Two-cell mode, 8.41VRMS (+18dB)
+    result = device.WriteDataAtAddress(slave_address, speaker_amp_output_cfg, 2, &data, 1, TIMEOUT);
+    if (result != I2CHandle::Result::OK)
+    {
+        return false;
+    }
     data = 0x03;
     result = device.WriteDataAtAddress(slave_address, iv_data_en_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)

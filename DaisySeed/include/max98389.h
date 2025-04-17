@@ -17,8 +17,9 @@ public:
     const uint16_t pcm_tx_source_en_register =  0x205D;
     const uint16_t pcm_rx_en_register =         0x205E;
     const uint16_t pcm_tx_en_register =         0x205F;
+    const uint16_t speaker_channel_cfg =     0x2091;
     const uint16_t speaker_amp_output_cfg =     0x2092;
-    const uint16_t speaker_vol_output_cfg =     0x2090;
+    const uint16_t speaker_dig_vol_output_cfg =     0x2090;
     const uint16_t amp_en_register =            0x209F;
     const uint16_t iv_data_dsp_control =        0x20A0;
     const uint16_t iv_data_en_register =        0x20A7;

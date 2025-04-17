@@ -19,9 +19,13 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     float oscOut = 0.0;
     for(size_t i = 0; i < size; i++)
     {
-        oscOut = osc.Process();
+        // oscOut = osc.Process();
         amp_in_current = in[3][i];
         amp_in_voltage = in[2][i];
+        // int32_t raw_current = (int32_t)(amp_in_current);
+        // int16_t actual_signal = (int16_t)(raw_current >> 16);
+        // int32_t corrected_int = ((int32_t)actual_signal) << 16;
+        // amp_in_current = (float)(corrected_int) / 2.0f;
         // int32_t cur_32 = f2s32(amp_in_current);
         // int16_t cur_16 = static_cast<int16_t>(cur_32 >> 16);
         // amp_in_current = s162f(cur_16);
@@ -81,7 +85,7 @@ int main(void)
     osc.Init(hardware.AudioSampleRate());
     osc.SetWaveform(osc.WAVE_SIN);
     osc.SetFreq(440);
-    osc.SetAmp(0.5);
+    osc.SetAmp(1.f);
 
     hardware.SetLed(true);
 
