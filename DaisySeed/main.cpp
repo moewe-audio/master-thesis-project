@@ -3,6 +3,8 @@
 #include "include/max98389.h"
 #include "include/filter3rdO.h"
 
+#define PRINT_DECIMATION 1024 // Print one value every 512 samples
+
 using namespace daisysp;
 using namespace daisy;
 
@@ -11,37 +13,40 @@ DaisySeed hardware;
 max98389 amp;
 ThirdOrderFilter * bp1;
 static Oscillator osc;
+static size_t sample_counter = 0;
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
     float amp_in_current;
     float amp_in_voltage;
-    float oscOut = 0.0;
+    float ampOut = 0.0;
     for(size_t i = 0; i < size; i++)
     {
-        // oscOut = osc.Process();
+        // ampOut = osc.Process() * 0.0001f;
         amp_in_current = in[3][i];
         amp_in_voltage = in[2][i];
-        // int32_t raw_current = (int32_t)(amp_in_current);
-        // int16_t actual_signal = (int16_t)(raw_current >> 16);
-        // int32_t corrected_int = ((int32_t)actual_signal) << 16;
-        // amp_in_current = (float)(corrected_int) / 2.0f;
-        // int32_t cur_32 = f2s32(amp_in_current);
-        // int16_t cur_16 = static_cast<int16_t>(cur_32 >> 16);
-        // amp_in_current = s162f(cur_16);
-        // float filtered = bp1->process(amp_in_current);
+        int32_t crt_32 = f2s32(amp_in_current);
+        // int16_t crt_16 = (int16_t)(crt_32 >> 16);
+        // amp_in_current = s162f(crt_16);
         out[0][i] = amp_in_current;
-        out[1][i] = amp_in_voltage;
-        out[2][i] = oscOut;
-        out[3][i] = oscOut;
+        out[1][i] = amp_in_current;
+        out[2][i] = ampOut;
+        out[3][i] = ampOut;
+        if (++sample_counter >= PRINT_DECIMATION)
+        {
+            sample_counter = 0;
+            hardware.PrintLine(">current:" FLT_FMT(8), FLT_VAR(8,amp_in_current));
+        }
     }
 }
+
 
 int main(void)
 {
     hardware.Configure();
     hardware.Init();
     hardware.StartLog(false);
+
     System::Delay(500);
     
     if (!amp.init())
@@ -54,7 +59,7 @@ int main(void)
     SaiHandle::Config external_sai_cfg;
     external_sai_cfg.periph          = SaiHandle::Config::Peripheral::SAI_2;
     external_sai_cfg.sr              = SaiHandle::Config::SampleRate::SAI_48KHZ;
-    external_sai_cfg.bit_depth       = SaiHandle::Config::BitDepth::SAI_32BIT;
+    external_sai_cfg.bit_depth       = SaiHandle::Config::BitDepth::SAI_16BIT;
     external_sai_cfg.a_sync          = SaiHandle::Config::Sync::SLAVE;
     external_sai_cfg.a_dir           = SaiHandle::Config::Direction::RECEIVE;
     external_sai_cfg.b_sync          = SaiHandle::Config::Sync::MASTER;
@@ -75,10 +80,9 @@ int main(void)
     }
 
     AudioHandle::Config audio_cfg;
-    audio_cfg.blocksize  = 4;
+    audio_cfg.blocksize  = 64;
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
-
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
     hardware.StartAudio(AudioCallback); 
 
@@ -88,6 +92,5 @@ int main(void)
     osc.SetAmp(1.f);
 
     hardware.SetLed(true);
-
     while (true) { }
 }

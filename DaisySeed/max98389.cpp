@@ -21,13 +21,13 @@ bool max98389::init()
     {
         return false;
     }
-    uint8_t data = 0b11000000; // 32 bit
+    uint8_t data = 0b01000000; // 32 bit
     result = device.WriteDataAtAddress(slave_address, pcm_mode_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
         return false;
     }
-    data = 0b00000100;
+    data = 0b00000010;
     result = device.WriteDataAtAddress(slave_address, pcm_clock_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -93,7 +93,7 @@ bool max98389::init()
     {
         return false;
     }
-    data = 0b0011101; // amplfier output: Two-cell mode, 8.41VRMS (+18dB)
+    data = 0b0011000; // amplfier output: Two-cell mode, 8.41VRMS (+18dB)
     result = device.WriteDataAtAddress(slave_address, speaker_amp_output_cfg, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -105,7 +105,7 @@ bool max98389::init()
     {
         return false;
     }
-    data = 0b00010000; // enable I/V dither
+    data = 0b00000000; // enable I/V dither
     result = device.WriteDataAtAddress(slave_address, iv_data_dsp_control, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
