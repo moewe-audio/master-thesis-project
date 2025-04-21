@@ -15,24 +15,33 @@ ThirdOrderFilter * bp1;
 static Oscillator osc;
 static size_t sample_counter = 0;
 
+void ledErrorPulse(int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        hardware.SetLed(true);
+        System::Delay(100);
+        hardware.SetLed(false);
+        System::Delay(100);
+    }
+}
+
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
-    float amp_in_current;
-    float amp_in_voltage;
+    float velocity;
     float ampOut = 0.0;
     for(size_t i = 0; i < size; i++)
     {
-        // ampOut = osc.Process() * 0.1f;
-        amp_in_current = in[2][i];
-        out[0][i] = amp_in_current;
-        out[1][i] = amp_in_current;
+        velocity = in[2][i]; // Assume current readings to be proportional to velocity
+        out[0][i] = velocity;
+        out[1][i] = velocity;
         out[2][i] = ampOut;
         out[3][i] = ampOut;
-        if (++sample_counter >= PRINT_DECIMATION)
-        {
-            sample_counter = 0;
-            hardware.PrintLine(">current:" FLT_FMT(8), FLT_VAR(8,amp_in_current));
-        }
+        // if (++sample_counter >= PRINT_DECIMATION)
+        // {
+        //     sample_counter = 0;
+        //     hardware.PrintLine(">velocity:" FLT_FMT(8), FLT_VAR(8,velocity));
+        // }
     }
 }
 
@@ -43,11 +52,13 @@ int main(void)
     hardware.Init();
     hardware.StartLog(false);
 
-    System::Delay(500);
-    
-    if (!amp.init())
+    System::Delay(1000);
+
+    auto err = amp.init(hardware, false);
+    if (err != max98389::ERROR_CODE::NO_ERROR)
     {
         hardware.PrintLine("ERROR: Failed to initialize MAX98389.\n");
+        ledErrorPulse(err);
         return -1;
     }
 
@@ -71,6 +82,7 @@ int main(void)
 
     if (!external_sai_handle.IsInitialized())
     {
+        ledErrorPulse(3);
         return -1;
     }
 
@@ -79,12 +91,15 @@ int main(void)
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
-    hardware.StartAudio(AudioCallback); 
+
+    hardware.StartAudio(AudioCallback);
 
     osc.Init(hardware.AudioSampleRate());
     osc.SetWaveform(osc.WAVE_SIN);
     osc.SetFreq(220);
-    osc.SetAmp(1.f);
+    osc.SetAmp(0.02f);
+
+    bp1->setFilterParams(225.f, 10.f);
 
     hardware.SetLed(true);
     while (true) { }
