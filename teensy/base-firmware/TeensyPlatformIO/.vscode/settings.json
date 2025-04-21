@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "ostream": "cpp",
-        "limits": "cpp",
-        "numbers": "cpp"
-    },
-    "cmake.sourceDirectory": "/Users/loewe/master-thesis-project/teensy/base-firmware/TeensyPlatformIO/lib/teensy4_i2c-master"
-}
