@@ -14,6 +14,7 @@ max98389 amp;
 ThirdOrderFilter * bp1;
 static Oscillator osc;
 static size_t sample_counter = 0;
+static daisysp::DelayLine<float, 48000> delay_line;
 
 void ledErrorPulse(int n)
 {
@@ -33,6 +34,9 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     for(size_t i = 0; i < size; i++)
     {
         velocity = in[2][i]; // Assume current readings to be proportional to velocity
+        // delay_line.Write(velocity);
+        // ampOut = delay_line.Read() * 1.f;
+        ampOut = bp1->process(velocity) * 1.f;
         out[0][i] = velocity;
         out[1][i] = velocity;
         out[2][i] = ampOut;
@@ -98,6 +102,9 @@ int main(void)
     osc.SetWaveform(osc.WAVE_SIN);
     osc.SetFreq(220);
     osc.SetAmp(0.02f);
+
+    delay_line.Init();
+    delay_line.SetDelay((size_t)48000);
 
     bp1->setFilterParams(225.f, 10.f);
 

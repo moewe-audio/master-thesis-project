@@ -90,7 +90,7 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0x02; // Enable thermal auto-recovery
+    data = 0b00001010; // Enable thermal auto-recovery and CLOCK_AUTO_RESTART
     result = device.WriteDataAtAddress(slave_address, auto_recovery_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -102,7 +102,7 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0b00011000; // enable amp ramp up and down
+    data = 0b00000000; // enable amp ramp up and down
     result = device.WriteDataAtAddress(slave_address, speaker_channel_cfg, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -114,7 +114,7 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0b0011000; // amplfier output: Two-cell mode: 1.50VRMS (+3dB)
+    data = 0b0011100; // amplfier output: Two-cell mode: 1.50VRMS (+3dB)
     result = device.WriteDataAtAddress(slave_address, speaker_amp_output_cfg, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
