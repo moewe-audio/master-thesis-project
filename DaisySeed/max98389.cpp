@@ -21,13 +21,13 @@ bool max98389::init()
     {
         return false;
     }
-    uint8_t data = 0b01000000; // 32 bit
+    uint8_t data = 0b01000000; // 16 bit
     result = device.WriteDataAtAddress(slave_address, pcm_mode_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
         return false;
     }
-    data = 0b00000010;
+    data = 0b00000010; // 32 BCLKS per LRCLK -> 2ch * 16 bits
     result = device.WriteDataAtAddress(slave_address, pcm_clock_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -39,19 +39,19 @@ bool max98389::init()
     {
         return false;
     }
+    // data = 0x00;
+    // result = device.WriteDataAtAddress(slave_address, pcm_vmon_slots_register, 2, &data, 1, TIMEOUT);
+    // if (result != I2CHandle::Result::OK)
+    // {
+    //     return false;
+    // }
     data = 0x00;
-    result = device.WriteDataAtAddress(slave_address, pcm_vmon_slots_register, 2, &data, 1, TIMEOUT);
-    if (result != I2CHandle::Result::OK)
-    {
-        return false;
-    }
-    data = 0x01;
     result = device.WriteDataAtAddress(slave_address, pcm_imon_slots_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
         return false;
     }
-    data = 0x03;
+    data = 0x02; // disable voltage sense, enable current sense
     result = device.WriteDataAtAddress(slave_address, pcm_tx_source_en_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -63,7 +63,7 @@ bool max98389::init()
     {
         return false;
     }
-    data = 0x03;
+    data = 0x01;
     result = device.WriteDataAtAddress(slave_address, pcm_tx_en_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -99,13 +99,13 @@ bool max98389::init()
     {
         return false;
     }
-    data = 0x03;
+    data = 0x02; // only enable current feedback
     result = device.WriteDataAtAddress(slave_address, iv_data_en_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
         return false;
     }
-    data = 0b00000000; // enable I/V dither
+    data = 0b00000000; // enable dc blocking on current sense
     result = device.WriteDataAtAddress(slave_address, iv_data_dsp_control, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {

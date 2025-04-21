@@ -22,12 +22,8 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     float ampOut = 0.0;
     for(size_t i = 0; i < size; i++)
     {
-        // ampOut = osc.Process() * 0.0001f;
-        amp_in_current = in[3][i];
-        amp_in_voltage = in[2][i];
-        int32_t crt_32 = f2s32(amp_in_current);
-        // int16_t crt_16 = (int16_t)(crt_32 >> 16);
-        // amp_in_current = s162f(crt_16);
+        // ampOut = osc.Process() * 0.1f;
+        amp_in_current = in[2][i];
         out[0][i] = amp_in_current;
         out[1][i] = amp_in_current;
         out[2][i] = ampOut;
@@ -65,11 +61,10 @@ int main(void)
     external_sai_cfg.b_sync          = SaiHandle::Config::Sync::MASTER;
     external_sai_cfg.b_dir           = SaiHandle::Config::Direction::TRANSMIT;
     external_sai_cfg.pin_config.fs   = seed::D27;
-    external_sai_cfg.pin_config.mclk  = seed::D24;
+    external_sai_cfg.pin_config.mclk = seed::D24;
     external_sai_cfg.pin_config.sck  = seed::D28;
     external_sai_cfg.pin_config.sb   = seed::D25;
     external_sai_cfg.pin_config.sa   = seed::D26;
-
 
     /** Initialize the SAI new handle */
     external_sai_handle.Init(external_sai_cfg);
@@ -80,7 +75,7 @@ int main(void)
     }
 
     AudioHandle::Config audio_cfg;
-    audio_cfg.blocksize  = 64;
+    audio_cfg.blocksize  = 4;
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
@@ -88,7 +83,7 @@ int main(void)
 
     osc.Init(hardware.AudioSampleRate());
     osc.SetWaveform(osc.WAVE_SIN);
-    osc.SetFreq(440);
+    osc.SetFreq(220);
     osc.SetAmp(1.f);
 
     hardware.SetLed(true);

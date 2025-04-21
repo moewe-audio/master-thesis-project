@@ -2,7 +2,7 @@
 TARGET = AcousticGuitarController
 
 # Sources
-CPP_SOURCES = main_TDM.cpp max98389.cpp
+CPP_SOURCES = main.cpp max98389.cpp
 
 # Library Locations
 LIBDAISY_DIR = lib/libDaisy
