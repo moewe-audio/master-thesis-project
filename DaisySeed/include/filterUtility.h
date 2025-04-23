@@ -10,7 +10,7 @@
 class ThirdOrderFilter
 {
 public:
-    ThirdOrderFilter(float fs) : fs(fs) {};
+    explicit ThirdOrderFilter(float fs) : fs(fs) {};
     void setCoefficients(float a1, float a2, float b0, float b1, float b2);
     float process(float input);
     void setFilterParams(float fc, float Q);
@@ -18,16 +18,16 @@ public:
     float getQ() const { return Q; };
     float getFc() const { return fc; };
 private:
-    float a1, a2, b0, b1, b2;
+    float a1{}, a2{}, b0{}, b1{}, b2 = 0.f;
     float x[2] = {0.0f, 0.0f};
     float y[2] = {0.0f, 0.0f};
     float fs;
-    float Q, fc;
+    float Q{}, fc{};
 };
 
 #endif // FILTER3RDO_H
 
-void ThirdOrderFilter::setCoefficients(float a1, float a2, float b0, float b1, float b2)
+inline void ThirdOrderFilter::setCoefficients(float a1, float a2, float b0, float b1, float b2)
 {
     this->a1 = a1;
     this->a2 = a2;
@@ -36,7 +36,7 @@ void ThirdOrderFilter::setCoefficients(float a1, float a2, float b0, float b1, f
     this->b2 = b2;
 }
 
-float ThirdOrderFilter::process(float input)
+inline float ThirdOrderFilter::process(float input)
 {
     float out = b0 * input + b1 * x[0] + b2 * x[1] - a1 * y[0] - a2 * y[1];
     x[1] = x[0];
@@ -46,9 +46,9 @@ float ThirdOrderFilter::process(float input)
     return out;
 }
 
-void ThirdOrderFilter::setFilterParams(float fc, float Q)
+inline void ThirdOrderFilter::setFilterParams(float fc, float Q)
 {
-    float K0 = 1.0; // gain factor
+    const float K0 = 1.0; // gain factor
     this->fc = fc;
     this->Q = Q;
     // Analog filter coefficients:
@@ -70,7 +70,7 @@ void ThirdOrderFilter::setFilterParams(float fc, float Q)
     a2 = C / A;
 }
 
-std::array<float, 5> ThirdOrderFilter::getCoefficients() const
+inline std::array<float, 5> ThirdOrderFilter::getCoefficients() const
 {
     return {a1, a2, b0, b1, b2};
 }

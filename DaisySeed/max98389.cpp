@@ -114,7 +114,7 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0b0011100; // amplfier output: Two-cell mode: 1.50VRMS (+3dB)
+    data = 0b0011101; // amplfier output: Two-cell mode: 8.41VRMS (+18dB)
     result = device.WriteDataAtAddress(slave_address, speaker_amp_output_cfg, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -126,7 +126,7 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0b00000000; // disable dc blocking on current sense
+    data = 0b00010010; // enable dc blocking filter and dithering
     result = device.WriteDataAtAddress(slave_address, iv_data_dsp_control, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {

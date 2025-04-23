@@ -1,9 +1,10 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
 #include "include/max98389.h"
-#include "include/filter3rdO.h"
+#include "include/filterUtility.h"
 
 #define PRINT_DECIMATION 1024 // Print one value every 512 samples
+#define BOOT_RAMP_UP_SECS 4
 
 using namespace daisysp;
 using namespace daisy;
@@ -12,9 +13,14 @@ DaisySeed hardware;
 
 max98389 amp;
 ThirdOrderFilter * bp1;
-static Oscillator osc;
+ThirdOrderFilter * bp2;
+ThirdOrderFilter * bp3;
 static size_t sample_counter = 0;
-static daisysp::DelayLine<float, 48000> delay_line;
+static OnePole bLp, bHp;
+float bootRampUpGain = 0.f;
+float bootRampUpIncrement = 0.f;
+int bootRampUpSamples;
+int bootRampUpCounter = 0;
 
 void ledErrorPulse(int n)
 {
@@ -29,22 +35,24 @@ void ledErrorPulse(int n)
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
-    float velocity;
     float ampOut = 0.0;
+    bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
     for(size_t i = 0; i < size; i++)
     {
-        velocity = in[2][i]; // Assume current readings to be proportional to velocity
-        // delay_line.Write(velocity);
-        // ampOut = delay_line.Read() * 1.f;
-        ampOut = bp1->process(velocity) * 1.f;
-        out[0][i] = velocity;
-        out[1][i] = velocity;
+        const float in_current = in[2][i]; // Assume current readings to be proportional to velocity
+        // ampOut = 1.f * bp1->process(in_current) + -1.5f * bp2->process(in_current) +  -1.5f * bp3->process(in_current);
+        ampOut = -3.f * bp2->process(in_current);
+        ampOut = bLp.Process(ampOut);
+        ampOut = bHp.Process(ampOut);
+        ampOut *= bootRampUpGain;
+        out[0][i] = in_current;
+        out[1][i] = ampOut;
         out[2][i] = ampOut;
         out[3][i] = ampOut;
         // if (++sample_counter >= PRINT_DECIMATION)
         // {
         //     sample_counter = 0;
-        //     hardware.PrintLine(">velocity:" FLT_FMT(8), FLT_VAR(8,velocity));
+        //     hardware.PrintLine(">velocity:" FLT_FMT(8), FLT_VAR(8,in_current));
         // }
     }
 }
@@ -96,18 +104,26 @@ int main(void)
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
 
+
+    bp1 = new ThirdOrderFilter(hardware.AudioSampleRate());
+    bp2 = new ThirdOrderFilter(hardware.AudioSampleRate());
+    bp3 = new ThirdOrderFilter(hardware.AudioSampleRate());
+    bp1->setFilterParams(121.f, 20.f);
+    bp2->setFilterParams(226.f, 20.f);
+    bp3->setFilterParams(565.f, 20.f);
+
+    bLp.Init();
+    bLp.SetFilterMode(OnePole::FILTER_MODE_LOW_PASS);
+    bLp.SetFrequency(15000.f / hardware.AudioSampleRate()); // onepole impl requires ratio
+    bHp.Init();
+    bHp.SetFilterMode(OnePole::FILTER_MODE_HIGH_PASS);
+    bHp.SetFrequency(40.f / hardware.AudioSampleRate()); // see above
+
+    bootRampUpSamples = BOOT_RAMP_UP_SECS * hardware.AudioSampleRate();
+    bootRampUpIncrement = 1.f / (float) bootRampUpSamples * hardware.AudioBlockSize();
+
     hardware.StartAudio(AudioCallback);
-
-    osc.Init(hardware.AudioSampleRate());
-    osc.SetWaveform(osc.WAVE_SIN);
-    osc.SetFreq(220);
-    osc.SetAmp(0.02f);
-
-    delay_line.Init();
-    delay_line.SetDelay((size_t)48000);
-
-    bp1->setFilterParams(225.f, 10.f);
-
     hardware.SetLed(true);
+
     while (true) { }
 }
