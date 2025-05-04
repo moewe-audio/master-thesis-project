@@ -12,9 +12,9 @@ using namespace daisy;
 DaisySeed hardware;
 
 max98389 amp;
-ThirdOrderFilter * bp1;
-ThirdOrderFilter * bp2;
-ThirdOrderFilter * bp3;
+FourthOrderFilter * bp1;
+FourthOrderFilter * bp2;
+FourthOrderFilter * bp3;
 static size_t sample_counter = 0;
 static OnePole bLp, bHp;
 float bootRampUpGain = 0.f;
@@ -105,9 +105,9 @@ int main(void)
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
 
 
-    bp1 = new ThirdOrderFilter(hardware.AudioSampleRate());
-    bp2 = new ThirdOrderFilter(hardware.AudioSampleRate());
-    bp3 = new ThirdOrderFilter(hardware.AudioSampleRate());
+    bp1 = new FourthOrderFilter(hardware.AudioSampleRate());
+    bp2 = new FourthOrderFilter(hardware.AudioSampleRate());
+    bp3 = new FourthOrderFilter(hardware.AudioSampleRate());
     bp1->setFilterParams(121.f, 20.f);
     bp2->setFilterParams(226.f, 20.f);
     bp3->setFilterParams(565.f, 20.f);

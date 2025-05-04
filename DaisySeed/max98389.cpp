@@ -72,7 +72,13 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0x02; // disable voltage sense, enable current sense
+    data = 0x01;
+    result = device.WriteDataAtAddress(slave_address, pcm_vmon_slots_register, 2, &data, 1, TIMEOUT);
+    if (result != I2CHandle::Result::OK)
+    {
+        return false;
+    }
+    data = 0x03; // enable voltage sense, enable current sense
     result = device.WriteDataAtAddress(slave_address, pcm_tx_source_en_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
@@ -120,7 +126,7 @@ bool max98389::configure()
     {
         return false;
     }
-    data = 0x02; // only enable current feedback
+    data = 0x03; // enable current and voltage feedback
     result = device.WriteDataAtAddress(slave_address, iv_data_en_register, 2, &data, 1, TIMEOUT);
     if (result != I2CHandle::Result::OK)
     {
