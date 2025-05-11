@@ -78,11 +78,10 @@ struct Voice {
         float delaySec        = Params::getRandValue(params.glissOnsetDelayMs) * 1e-3f;
         glissandoOnsetDelay   = (int) (delaySec * sampleRate);
         if (glissandoDuration != 0.0f) {
-            float semi   =  Params::getRandValue(params.glissRangeSemitones);
+            float semi   = Params::getRandValue(params.glissRangeSemitones);
             float target = freq * std::pow(2.f, semi/12.f);
             float diff   = target - freq;
-            glissandoIncrement = diff / (float)glissandoDuration;
-            glissandoIncrement = Params::getRandValue(params.glissRangeSemitones) / glissandoDuration;
+            glissandoIncrement = diff / float(glissandoDuration);
         }
     }
 
