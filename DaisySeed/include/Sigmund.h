@@ -25,7 +25,7 @@ public:
     static constexpr int   kHopSize        = 1024;
     static constexpr int   nPeaks          = 14;
     static constexpr int   nTracks         = 14;
-    static constexpr float minFreqHz       = 260.0f;
+    static constexpr float minFreqHz       = 85.0f;
     static constexpr float maxFreqHz       = 7500.0f;
     static constexpr float gainThresh      = 0.01f;
     static constexpr int   maxMissedFrames = 3;
