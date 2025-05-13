@@ -884,7 +884,6 @@ class ShyFFT
     uint8_t              bit_rev_[BitReversalLut<num_passes>::size];
     static const uint8_t bit_rev_256_lut_[256];
 };
-
 template <typename T, size_t size, template <typename, size_t> class Phasor>
 const uint8_t ShyFFT<T, size, Phasor>::bit_rev_256_lut_[256] = {
 #define R2(n) n, n + 2 * 64, n + 1 * 64, n + 3 * 64
