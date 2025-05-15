@@ -5,10 +5,10 @@
 #include "Constants.h"
 
 #define GROUP_SIZE 3
-#define NUM_PEAKS 3
+#define NUM_PEAKS 1
 #define NUM_BINS (FFT_SIZE / 2)
 #define NUM_GROUPS ((NUM_BINS + GROUP_SIZE - 1) / GROUP_SIZE)
-#define INTEGRATOR_DECAY 0.97
+#define INTEGRATOR_DECAY 0.98
 
 
 class BinTracking {
@@ -71,6 +71,6 @@ private:
     float prevGroupMag[NUM_GROUPS];
     float accumError[NUM_GROUPS];
 
-    float kp = 0.2f;
-    float ki = 0.65f;
+    float kp = 0.08f;
+    float ki = 0.95f;
 };

@@ -43,10 +43,10 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         // piezoIn       = lowpass.process(highpass2.process(highpass1.process(piezoIn)));
         spectralDelay.write(piezoIn);
         float specDelOut = shelf220.process(spectralDelay.read());
-        float gain       = 6.0;
+        float gain       = 12.0;
         ampOut           = bootRampUpGain * specDelOut * gain;
         out[0][i]        = piezoIn;
-        out[1][i]        = ampOut;
+        out[1][i]        = ampOut * 10.f;
         out[2][i]        = ampOut;
     }
 }

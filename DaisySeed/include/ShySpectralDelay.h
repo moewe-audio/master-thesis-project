@@ -9,11 +9,12 @@
 #include "Constants.h"
 
 #define MIN_FREQ 120.f
-#define MIN_FX_FREQ 121.f
-#define MAX_FX_FREQ 7500.f
+#define MIN_FX_FREQ 90.f
+#define MAX_FX_FREQ 6000.f
 #define MAX_DELAY_FRAMES    70
 #define SPECTRAL_RING_LEN    (MAX_DELAY_FRAMES + 1)
 
+using namespace daisysp;
 
 class SpectralDelay {
 public:
@@ -52,50 +53,104 @@ private:
     // callback is called once per full STFT frame:
     // inData[0..FFT_SIZE/2-1] = real bins, inData[FFT_SIZE/2..FFT_SIZE-1] = imag bins
     static void processor(const float *inData, float *outData) {
-        static int           head     = 0;
-        static bool          inited   = false;
-        static constexpr int minBin   = MIN_FREQ * FFT_SIZE / SAMPLE_RATE;
-        static constexpr int minFxBin = MIN_FX_FREQ * FFT_SIZE / SAMPLE_RATE;
-        static constexpr int maxFxBin = MAX_FX_FREQ * FFT_SIZE / SAMPLE_RATE;
-        static constexpr int noFxBins = (maxFxBin - minFxBin + 1);
-        static float         history[SPECTRAL_RING_LEN][noFxBins * 2];
+        static int           head      = 0;
+        static bool          inited    = false;
+        static constexpr int minBin    = MIN_FREQ * FFT_SIZE / SAMPLE_RATE;
+        static constexpr int minFxBin  = MIN_FX_FREQ * FFT_SIZE / SAMPLE_RATE;
+        static constexpr int maxFxBin  = MAX_FX_FREQ * FFT_SIZE / SAMPLE_RATE;
+        static constexpr int numFxBins = (maxFxBin - minFxBin + 1);
+        static float         history[SPECTRAL_RING_LEN][numFxBins * 2];
         static int           delayDist[FFT_SIZE];
-        static BinTracking   magCtrl;
-        static float magGains[FFT_SIZE/2];
+        static float         baseDelay[numFxBins];
+
+        static BinTracking magCtrl;
+        static float       phaseOffset[numFxBins];
+        static float       cosOffset[numFxBins];
+        static float       sinOffset[numFxBins];
+        static float       depth[numFxBins];
+        static float       magGains[FFT_SIZE / 2];
+        static Oscillator  lfo_sin, lfo_cos;
 
         if (!inited) {
             magCtrl.init(MIN_FX_FREQ, MAX_FX_FREQ);
-            for (auto &d: history)
-                for (float &i: d)
-                    i = 0.0f;
 
-            for (int i = 0; i < FFT_SIZE / 2; ++i) {
-                delayDist[i] = daisy::Random::GetValue() % SPECTRAL_RING_LEN;
+            for (auto &row: history)
+                for (float &v: row)
+                    v = 0.0f;
+
+            lfo_sin.Init(SAMPLE_RATE);
+            lfo_sin.SetWaveform(Oscillator::WAVE_SIN);
+            lfo_sin.SetFreq(4.0f);
+            lfo_sin.SetAmp(1.0f);
+
+            lfo_cos.Init(SAMPLE_RATE);
+            lfo_cos.SetWaveform(Oscillator::WAVE_SIN);
+            lfo_cos.SetFreq(4.0f);
+            lfo_cos.SetAmp(1.0f);
+            lfo_cos.Reset(0.25f); // +90° → π/2
+
+            for (int k = minFxBin; k <= maxFxBin; ++k) {
+                int i        = k - minFxBin;
+                int d        = daisy::Random::GetValue() % SPECTRAL_RING_LEN;
+                delayDist[k] = d;
+                baseDelay[i] = float(d);
+
+                float norm     = float(i) / float(numFxBins); // 0…1
+                phaseOffset[i] = 2.f * M_PI * norm;
+                cosOffset[i]   = cosf(phaseOffset[i]);
+                sinOffset[i]   = sinf(phaseOffset[i]);
+                depth[i]       = norm;
             }
 
             inited = true;
         }
+
+        float sinPhi = lfo_sin.Process();
+        float cosPhi = lfo_cos.Process();
+
         magCtrl.process(inData, magGains);
+
+        for (int k = minFxBin; k <= maxFxBin; ++k) {
+            int   i = k - minFxBin;
+            float m = depth[i] * (sinPhi * cosOffset[i]
+                                  + cosPhi * sinOffset[i]);
+            float D      = baseDelay[i] + m;
+            int   d0     = int(floorf(D));
+            float frac   = D - float(d0);
+            delayDist[k] = d0;
+        }
+
         for (int k = 0; k < FFT_SIZE / 2; ++k) {
             if (k <= minBin) {
-                outData[k]                = inData[k] * 0;
-                outData[k + FFT_SIZE / 2] = inData[k + FFT_SIZE / 2] * 0;
+                outData[k]                = 0.0f;
+                outData[k + FFT_SIZE / 2] = 0.0f;
             } else if (k >= minFxBin && k <= maxFxBin) {
-                int offsetK                    = k - minFxBin;
-                history[head][2 * offsetK]     = inData[k]; // real
-                history[head][2 * offsetK + 1] = inData[k + FFT_SIZE / 2]; // imag
+                int i                    = k - minFxBin;
+                history[head][2 * i]     = inData[k];
+                history[head][2 * i + 1] = inData[k + FFT_SIZE / 2];
+                int   idx0               = (head + delayDist[k]) % SPECTRAL_RING_LEN;
+                int   idx1               = (idx0 + 1) % SPECTRAL_RING_LEN;
+                float frac               = (baseDelay[i] +
+                                            depth[i] * (sinPhi * cosOffset[i] + cosPhi * sinOffset[i]))
+                                           - float(delayDist[k]);
 
-                int readHead              = (head + delayDist[k]) % SPECTRAL_RING_LEN;
-                outData[k]                = magGains[k] * history[readHead][2 * offsetK]; // real
-                outData[k + FFT_SIZE / 2] = history[readHead][2 * offsetK + 1]; // imag
+                // real + imag interpolation
+                float real = history[idx0][2 * i] * (1 - frac)
+                             + history[idx1][2 * i] * frac;
+                float imag = history[idx0][2 * i + 1] * (1 - frac)
+                             + history[idx1][2 * i + 1] * frac;
+
+                outData[k]                = magGains[k] * real;
+                outData[k + FFT_SIZE / 2] = imag;
             } else {
                 outData[k]                = inData[k];
                 outData[k + FFT_SIZE / 2] = inData[k + FFT_SIZE / 2];
             }
         }
-        int outIdx = (head + 1) % SPECTRAL_RING_LEN;
-        head       = outIdx;
+
+        head = (head + 1) % SPECTRAL_RING_LEN;
     }
+
 
     ShyFFT<float, FFT_SIZE, RotationPhasor> *fft;
     soundmath::Wave<float>                   window;
