@@ -1,10 +1,9 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
-#include "include/filterUtility.h"
 #include "include/max98389.h"
 #include "include/RMSController.h"
-#include "include/ShySpectralDelay.h"
 #include "lib/DaisySP/Source/Utility/dsp.h"
+#include "include/filterUtility.h"
 
 #define PRINT_DECIMATION 1024 // Print one value every 512 samples
 #define BOOT_RAMP_UP_SECS 4
@@ -15,16 +14,14 @@ using namespace daisy;
 DaisySeed hardware;
 
 max98389                    amp;
-static SpectralDelay        spectralDelay;
 float                       bootRampUpGain      = 0.f;
 float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
-static RmsTrackerController rmsCtrl(1.5f, 80, 0.001, 0, 0.f, 9.f);
+static RmsTrackerController rmsCtrl(1.f, 20, 0.001, 0, 0.f, 1.f);
 static BiQuad               highpass1(48000);
 static BiQuad               highpass2(48000);
 static BiQuad               lowpass(48000);
-static BiQuad               shelf220(48000);
 
 void ledErrorPulse(int n) {
     for (int i = 0; i < n; i++) {
@@ -40,14 +37,13 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
     for (size_t i = 0; i < size; i++) {
         float piezoIn = in[0][i];
-        // piezoIn       = lowpass.process(highpass2.process(highpass1.process(piezoIn)));
-        spectralDelay.write(piezoIn);
-        float specDelOut = shelf220.process(spectralDelay.read());
-        float gain       = 6.0;
-        ampOut           = bootRampUpGain * specDelOut * gain;
-        out[0][i]        = piezoIn;
-        out[1][i]        = ampOut;
-        out[2][i]        = ampOut;
+        piezoIn       = lowpass.process(highpass2.process(highpass1.process(piezoIn)));
+        float extIn   = out[1][i];
+        // float gain    = rmsCtrl.processSample(extIn);
+        // ampOut        = bootRampUpGain * extIn * gain;
+        out[0][i] = piezoIn;
+        out[1][i] = extIn;
+        out[2][i] = extIn;
     }
 }
 
@@ -117,13 +113,6 @@ int main(void) {
         0.043241359953123934,
         0.021620679976561967
     ); // fc=2500 Q=0.707
-    shelf220.setCoefficients(
-        -1.9390868970861534,
-        0.9408880541483926,
-        0.9899484293680672,
-        -1.9395852019639785,
-        0.9504413199025002
-    ); // fc=220 gain=-7
 
     hardware.StartAudio(AudioCallback);
     hardware.SetLed(true);
