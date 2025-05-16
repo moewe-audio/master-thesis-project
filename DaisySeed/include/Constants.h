@@ -7,6 +7,7 @@
 
 #define SAMPLE_RATE 48000
 #define FFT_SIZE 2048
-#define LAPS      4
+#define HOP_SIZE 1024
+#define LAPS      (FFT_SIZE / HOP_SIZE)
 
 #endif //CONSTANTS_H

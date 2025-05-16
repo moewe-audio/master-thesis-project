@@ -20,11 +20,9 @@ float                       bootRampUpGain      = 0.f;
 float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
-static RmsTrackerController rmsCtrl(1.5f, 80, 0.001, 0, 0.f, 9.f);
-static BiQuad               highpass1(48000);
-static BiQuad               highpass2(48000);
-static BiQuad               lowpass(48000);
 static BiQuad               shelf220(48000);
+static BiQuad               bp141(48000);
+static BiQuad               bp890(48000);
 
 void ledErrorPulse(int n) {
     for (int i = 0; i < n; i++) {
@@ -40,11 +38,14 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
     for (size_t i = 0; i < size; i++) {
         float piezoIn = in[0][i];
+        float currentIn = in[2][i];
         // piezoIn       = lowpass.process(highpass2.process(highpass1.process(piezoIn)));
+
         spectralDelay.write(piezoIn);
         float specDelOut = shelf220.process(spectralDelay.read());
         float gain       = 12.0;
         ampOut           = bootRampUpGain * specDelOut * gain;
+        ampOut +=         (bp141.process(currentIn) + bp890.process(currentIn))* -2.f * bootRampUpGain;
         out[0][i]        = piezoIn;
         out[1][i]        = ampOut * 10.f;
         out[2][i]        = ampOut;
@@ -98,25 +99,9 @@ int main(void) {
     bootRampUpSamples   = BOOT_RAMP_UP_SECS * hardware.AudioSampleRate();
     bootRampUpIncrement = 1.f / (float) bootRampUpSamples * hardware.AudioBlockSize();
 
-    highpass1.setCoefficients(1.984079851482528,
-                              0.9842055778154112,
-                              0.9920713573244848,
-                              1.9841427146489696,
-                              0.9920713573244848
-    ); // fc=86 Q=0.707
-    highpass2.setCoefficients(1.984079851482528,
-                              0.9842055778154112,
-                              0.9920713573244848,
-                              1.9841427146489696,
-                              0.9920713573244848
-    ); // fc=86 Q=0.707
-    lowpass.setCoefficients(
-        -1.5431183905443995,
-        0.6296011104506473,
-        0.021620679976561967,
-        0.043241359953123934,
-        0.021620679976561967
-    ); // fc=2500 Q=0.707
+    bp141.setFilterParams(141.f, 20);
+    bp890.setFilterParams(890.f, 20);
+
     shelf220.setCoefficients(
         -1.9390868970861534,
         0.9408880541483926,

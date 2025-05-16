@@ -72,5 +72,5 @@ private:
     float accumError[NUM_GROUPS];
 
     float kp = 0.08f;
-    float ki = 0.95f;
+    float ki = 0.99f;
 };
