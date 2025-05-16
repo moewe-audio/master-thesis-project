@@ -9,9 +9,9 @@
 #include "Constants.h"
 
 #define MIN_FREQ 120.f
-#define MIN_FX_FREQ 90.f
-#define MAX_FX_FREQ 6000.f
-#define MAX_DELAY_FRAMES    70
+#define MIN_FX_FREQ 80.f
+#define MAX_FX_FREQ 2500.f
+#define MAX_DELAY_FRAMES    30
 #define SPECTRAL_RING_LEN    (MAX_DELAY_FRAMES + 1)
 
 using namespace daisysp;
@@ -80,18 +80,20 @@ private:
 
             lfo_sin.Init(SAMPLE_RATE);
             lfo_sin.SetWaveform(Oscillator::WAVE_SIN);
-            lfo_sin.SetFreq(4.0f);
+            lfo_sin.SetFreq(20.f);
             lfo_sin.SetAmp(1.0f);
 
             lfo_cos.Init(SAMPLE_RATE);
             lfo_cos.SetWaveform(Oscillator::WAVE_SIN);
-            lfo_cos.SetFreq(4.0f);
+            lfo_cos.SetFreq(20.f);
             lfo_cos.SetAmp(1.0f);
             lfo_cos.Reset(0.25f); // +90° → π/2
 
             for (int k = minFxBin; k <= maxFxBin; ++k) {
                 int i        = k - minFxBin;
-                int d        = daisy::Random::GetValue() % SPECTRAL_RING_LEN;
+                int d        = (daisy::Random::GetValue() % (SPECTRAL_RING_LEN ));
+                // delayDist[k] = (maxFxBin - minFxBin) - i;
+                // baseDelay[i] = float((maxFxBin - minFxBin) - i);
                 delayDist[k] = d;
                 baseDelay[i] = float(d);
 
@@ -99,7 +101,7 @@ private:
                 phaseOffset[i] = 2.f * M_PI * norm;
                 cosOffset[i]   = cosf(phaseOffset[i]);
                 sinOffset[i]   = sinf(phaseOffset[i]);
-                depth[i]       = norm;
+                depth[i]       = norm * 10;
             }
 
             inited = true;
