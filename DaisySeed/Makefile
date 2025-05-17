@@ -8,7 +8,7 @@ DAISYSP_DIR ?= lib/DaisySP
 OPT = -Os
 
 # application sources
-CPP_SOURCES = main_spec_delay.cpp \
+CPP_SOURCES = main_modal_synth.cpp \
               max98389.cpp
 
 # Core Daisy makefile

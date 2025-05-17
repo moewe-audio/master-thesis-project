@@ -3,22 +3,30 @@
 
 #include <array>
 #include <cmath>
+
+#include "Constants.h"
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
 #endif
 
 class BiQuad {
 public:
+    BiQuad() : fs(SAMPLE_RATE) {
+    };
+
     explicit BiQuad(float fs) : fs(fs) {
     };
 
-    void setCoefficients(float a1, float a2, float b0, float b1, float b2);
+    void setCoefficients(double a1, double a2, double b0, double b1, double b2);
 
     float process(float input);
 
     void setFilterParams(float fc, float Q);
 
-    std::array<float, 5> getCoefficients() const;
+    void setBandpass(float freq, float Q);
+
+
+    std::array<double, 5> getCoefficients() const;
 
     float getQ() const { return Q; };
     float getFc() const { return fc; };
@@ -27,14 +35,14 @@ public:
     float rumbleFilter2[5] = {-1.9924183f, 0.99251427f, 1.0f, -2.0f, 1.0f};
 
 private:
-    float a1{}, a2{}, b0{}, b1{}, b2 = 0.f;
-    float x[2]                       = {0.0f, 0.0f};
-    float y[2]                       = {0.0f, 0.0f};
-    float fs;
-    float Q{}, fc{};
+    double a1{}, a2{}, b0{}, b1{}, b2 = 0.f;
+    double x[2]                       = {0.0f, 0.0f};
+    double y[2]                       = {0.0f, 0.0f};
+    double fs;
+    double Q{}, fc{};
 };
 
-inline void BiQuad::setCoefficients(float a1, float a2, float b0, float b1, float b2) {
+inline void BiQuad::setCoefficients(double a1, double a2, double b0, double b1, double b2) {
     this->a1 = a1;
     this->a2 = a2;
     this->b0 = b0;
@@ -74,7 +82,29 @@ inline void BiQuad::setFilterParams(float fc, float Q) {
     a2 = C / A;
 }
 
-inline std::array<float, 5> BiQuad::getCoefficients() const {
+inline void BiQuad::setBandpass(float freq, float Q) {
+    this->fc  = freq;
+    this->Q   = Q;
+    double ω0 = 2 * M_PI * freq / fs;
+    double α  = sin(ω0) / (2 * Q);
+    // raw band-pass:
+    b0       = α;
+    b1       = 0;
+    b2       = -α;
+    float a0 = 1 + α;
+    a1       = -2 * cos(ω0);
+    a2       = 1 - α;
+    // normalize so that gain at ω0 is unity:
+    b0 /= a0;
+    b1 /= a0;
+    b2 /= a0;
+    a1 /= a0;
+    a2 /= a0;
+
+    setCoefficients(a1, a2, b0, b1, b2);
+}
+
+inline std::array<double, 5> BiQuad::getCoefficients() const {
     return {a1, a2, b0, b1, b2};
 }
 
