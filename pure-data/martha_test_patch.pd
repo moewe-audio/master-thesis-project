@@ -1,4 +1,4 @@
-#N canvas 586 159 1136 616 12;
+#N canvas 376 159 1136 616 12;
 #N canvas 0 22 592 473 output 0;
 #X obj 370 277 *~;
 #X obj 362 306 dac~;
@@ -77,7 +77,7 @@
 #X text 483 594 www.williambrent.com;
 #X text 483 574 William Brent 2013;
 #X text 211 432 \$2: desired number of voices in the oscillator bank (how many can your CPU handle?);
-#N canvas 62 223 665 643 presets 1;
+#N canvas 62 223 665 643 presets 0;
 #X obj 64 14 inlet;
 #X obj 101 518 outlet;
 #X msg 200 322 amp-thresh 0.1 \, attack-time-range 125 250 \, release-time-range 2000 4000 \, gliss-range -3 0.5 \, gliss-onset-delay-range 50 750 \, gliss-dur-range 500 2000 \, tremolo-rate-range 0.25 4 \, pitch-switch 0 \, dsp-switch 1;
@@ -134,13 +134,13 @@
 #X obj 78 334 martha~ 30 20;
 #X obj 43 106 adc~;
 #X obj 66 149 -~;
-#X obj 26 217 sigmund~ -npts 2048 -hop 1024 -npeak 18 -maxfreq 15000 tracks;
 #X msg 489 160 amp-thresh 0.2 \, attack-time-range 1 26 \, release-time-range 250 730 \, gliss-range -0.25 0.25 \, gliss-onset-delay-range 50 750 \, gliss-dur-range 500 2000 \, tremolo-rate-range 0 7 \, pitch-switch 0 \, dsp-switch 1;
 #X text 138 451 SET TO 110!;
+#X obj 26 217 sigmund~ -npts 4086 -hop 1024 -npeak 18 -maxfreq 15000 tracks;
 #X connect 9 0 14 1;
 #X connect 10 0 9 0;
 #X connect 14 0 0 0;
 #X connect 15 0 16 0;
-#X connect 16 0 17 0;
-#X connect 17 0 14 0;
-#X connect 18 0 14 1;
+#X connect 16 0 19 0;
+#X connect 17 0 14 1;
+#X connect 19 0 14 0;

@@ -1,9 +1,7 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
-#include "include/filterUtility.h"
 #include "include/max98389.h"
 #include "include/RMSController.h"
-#include "include/ShySpectralDelay.h"
 #include "lib/DaisySP/Source/Utility/dsp.h"
 
 #define PRINT_DECIMATION 1024 // Print one value every 512 samples
@@ -19,7 +17,7 @@ float                       bootRampUpGain      = 0.f;
 float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
-static RmsTrackerController rmsCtrl(0.9f, 200, 0.01, 0, 0.f, 0.7f);
+static RmsTrackerController rmsCtrl(0.3f, 20, 0.003, 0, 0.f, 0.43f);
 
 void ledErrorPulse(int n) {
     for (int i = 0; i < n; i++) {
@@ -86,7 +84,7 @@ int main(void) {
     }
 
     AudioHandle::Config audio_cfg;
-    audio_cfg.blocksize  = 128;
+    audio_cfg.blocksize  = 4;
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
