@@ -37,16 +37,13 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     float ampOut   = 0.0;
     bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
     for (size_t i = 0; i < size; i++) {
-        float piezoIn = in[0][i];
-        float currentIn = in[2][i];
-        // piezoIn       = lowpass.process(highpass2.process(highpass1.process(piezoIn)));
-
-        spectralDelay.write(piezoIn);
+        float stringIn = in[0][i];
+        stringIn *= bootRampUpGain;
+        spectralDelay.write(stringIn);
         float specDelOut = shelf220.process(spectralDelay.read());
-        float gain       = 6.f;
-        ampOut           = bootRampUpGain * specDelOut * gain;
-        ampOut +=         (bp141.process(currentIn) + bp890.process(currentIn))* -2.f * bootRampUpGain;
-        out[0][i]        = piezoIn * 10.f;
+        float gain       = 2.f;
+        ampOut           = specDelOut * gain;
+        out[0][i]        = stringIn * 10.f;
         out[1][i]        = ampOut;
         out[2][i]        = ampOut;
     }

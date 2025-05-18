@@ -10,7 +10,7 @@
 
 #define PRINT_DECIMATION 1024 // Print one value every 512 samples
 #define BOOT_RAMP_UP_SECS 8
-#define NUM_SYMPETHATICS 16
+#define NUM_SYMPETHATICS 17
 
 using namespace daisysp;
 using namespace daisy;
@@ -23,7 +23,7 @@ float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
 Modal                       banjoModes[BANJO_FILTER.numModes];
-static RmsTrackerController rmsCtrl(0.3, 20, 0.015, 0.0, 0.0, 0.35f,SAMPLE_RATE);
+static RmsTrackerController rmsCtrl(0.3, 20, 0.015, 0.0, 0.0, 0.4f,SAMPLE_RATE);
 static StringWaveguide      sympethaticStrings[NUM_SYMPETHATICS];
 static BiQuad               highpass;
 
@@ -39,22 +39,22 @@ void ledErrorPulse(int n) {
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
     bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
     for (size_t i = 0; i < size; i++) {
-        float piezoIn   = in[0][i];
+        float piezoIn = in[0][i];
         piezoIn *= bootRampUpGain;
         piezoIn           = highpass.process(piezoIn);
-        float modalOut    = 0;
-        float stringOut   = 0;
-        float softClipped = std::tanh(0.4f * piezoIn);
+        float modalOut    = 0.f;
+        float softClipped = std::tanh(2.f * piezoIn);
+        float stringOut = 0.f;
         for (int str = 0; str < NUM_SYMPETHATICS; str++) {
-            piezoIn += sympethaticStrings[str].Process((softClipped)) * (1.f / NUM_SYMPETHATICS);
+            stringOut += sympethaticStrings[str].Process((softClipped)) * (1.f / NUM_SYMPETHATICS);
         }
         for (int m = 0; m < BANJO_FILTER.numModes; m++) {
-            modalOut += banjoModes[m].process(1.3*piezoIn);
+            modalOut += banjoModes[m].process(1.2f * softClipped);
         }
-        modalOut -= 1.3*piezoIn;
-        float summed = modalOut;
-        float gain   = rmsCtrl.processSample(summed);
-        float ampOut = gain * summed;
+        modalOut -= 1.2f * softClipped;
+        float sum = modalOut + stringOut;
+        float gain   = rmsCtrl.processSample(sum);
+        float ampOut = gain * sum;
         out[0][i]    = piezoIn;
         out[1][i]    = ampOut;
         out[2][i]    = ampOut;
@@ -100,7 +100,7 @@ int main(void) {
     }
 
     AudioHandle::Config audio_cfg;
-    audio_cfg.blocksize  = 4;
+    audio_cfg.blocksize  = 16;
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
@@ -112,7 +112,7 @@ int main(void) {
     }
 
 
-    InitSympatheticStrings(sympethaticStrings, NUM_SYMPETHATICS, 110, 0.8, 0.9907f, 0.9998);
+    InitSympatheticStrings(sympethaticStrings, NUM_SYMPETHATICS, 110, 0.8, 0.9887f, 0.9998);
 
     highpass.setCoefficients(-1.9847443991453215, 0.9848598860490441, 0.9924010712985913, -1.9848021425971827,
                              0.9924010712985913);

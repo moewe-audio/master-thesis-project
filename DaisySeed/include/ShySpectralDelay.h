@@ -10,8 +10,8 @@
 
 #define MIN_FREQ 120.f
 #define MIN_FX_FREQ 80.f
-#define MAX_FX_FREQ 2500.f
-#define MAX_DELAY_FRAMES    30
+#define MAX_FX_FREQ 10000.f
+#define MAX_DELAY_FRAMES    50
 #define SPECTRAL_RING_LEN    (MAX_DELAY_FRAMES + 1)
 
 using namespace daisysp;
@@ -62,7 +62,7 @@ private:
         static float         history[SPECTRAL_RING_LEN][numFxBins * 2];
         static int           delayDist[FFT_SIZE];
         static float         baseDelay[numFxBins];
-
+        const float frameRate  = SAMPLE_RATE / HOP_SIZE;
         static BinTracking magCtrl;
         static float       phaseOffset[numFxBins];
         static float       cosOffset[numFxBins];
@@ -78,30 +78,24 @@ private:
                 for (float &v: row)
                     v = 0.0f;
 
-            lfo_sin.Init(SAMPLE_RATE);
+            lfo_sin.Init(frameRate);
             lfo_sin.SetWaveform(Oscillator::WAVE_SIN);
-            lfo_sin.SetFreq(20.f);
+            lfo_sin.SetFreq(1.f);
             lfo_sin.SetAmp(1.0f);
 
-            lfo_cos.Init(SAMPLE_RATE);
+            lfo_cos.Init(frameRate);
             lfo_cos.SetWaveform(Oscillator::WAVE_SIN);
-            lfo_cos.SetFreq(20.f);
+            lfo_cos.SetFreq(1.f);
             lfo_cos.SetAmp(1.0f);
             lfo_cos.Reset(0.25f); // +90° → π/2
 
-            for (int k = minFxBin; k <= maxFxBin; ++k) {
-                int i        = k - minFxBin;
-                int d        = (daisy::Random::GetValue() % (SPECTRAL_RING_LEN ));
-                // delayDist[k] = (maxFxBin - minFxBin) - i;
-                // baseDelay[i] = float((maxFxBin - minFxBin) - i);
-                delayDist[k] = d;
-                baseDelay[i] = float(d);
+            for(int k=minFxBin; k<=maxFxBin; ++k)
+            {
+                int   i    = k - minFxBin;
+                float norm = float(i) / numFxBins;           // 0…1
 
-                float norm     = float(i) / float(numFxBins); // 0…1
-                phaseOffset[i] = 2.f * M_PI * norm;
-                cosOffset[i]   = cosf(phaseOffset[i]);
-                sinOffset[i]   = sinf(phaseOffset[i]);
-                depth[i]       = norm * 10;
+                baseDelay[i] = 20;             // now in [0…50] frames
+                depth    [i] = norm * 20;     // e.g. depth=norm*10 for ±10-frame swing
             }
 
             inited = true;
@@ -114,19 +108,14 @@ private:
 
         for (int k = minFxBin; k <= maxFxBin; ++k) {
             int   i = k - minFxBin;
-            float m = depth[i] * (sinPhi * cosOffset[i]
-                                  + cosPhi * sinOffset[i]);
-            float D      = baseDelay[i] + m;
-            int   d0     = int(floorf(D));
-            float frac   = D - float(d0);
-            delayDist[k] = d0;
+            float  m    = depth[i] * sin(sinPhi*cosOffset[i] + cosPhi*sinOffset[i]);
+            float  D    = baseDelay[i] + m;                 // still in frames
+            int    d0   = int(floorf(D));
+            delayDist[k]  = d0;
         }
 
         for (int k = 0; k < FFT_SIZE / 2; ++k) {
-            if (k <= minBin) {
-                outData[k]                = 0.0f;
-                outData[k + FFT_SIZE / 2] = 0.0f;
-            } else if (k >= minFxBin && k <= maxFxBin) {
+            if (k >= minFxBin && k <= maxFxBin) {
                 int i                    = k - minFxBin;
                 history[head][2 * i]     = inData[k];
                 history[head][2 * i + 1] = inData[k + FFT_SIZE / 2];
