@@ -7,10 +7,10 @@ DAISYSP_DIR ?= lib/DaisySP
 
 OPT = -Os
 
-APP_TYPE = BOOT_SRAM
+#APP_TYPE = BOOT_SRAM
 
 # application sources
-CPP_SOURCES = main_cmsis.cpp \
+CPP_SOURCES = main_martha.cpp \
               max98389.cpp
 
 C_SOURCES  += $(wildcard $(LIBDAISY_DIR)/Drivers/CMSIS/DSP/Source/*/*.c)

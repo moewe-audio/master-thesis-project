@@ -6,7 +6,7 @@
 #include <cmath> // for std::ceil, std::floor
 #include <vector>
 
-#define FFT_SIZE 4096
+#define FFT_SIZE_SIGMUND 4096
 
 struct SpectralPeak {
     float freq;
@@ -25,13 +25,15 @@ public:
     static constexpr int   kHopSize        = 1024;
     static constexpr int   nPeaks          = 14;
     static constexpr int   nTracks         = 14;
-    static constexpr float minFreqHz       = 85.0f;
+    static constexpr float minFreqHz       = 120.0f;
     static constexpr float maxFreqHz       = 7500.0f;
-    static constexpr float gainThresh      = 0.01f;
+    static constexpr float gainThresh      = 8.f;
     static constexpr int   maxMissedFrames = 3;
-    static constexpr float freqToleranceHz = 100.f;
+    static constexpr float freqToleranceHz = 10.f;
 
-    Sigmund() { init(48000.0f); }
+    Sigmund() {
+        init(48000.0f);
+    }
 
     ~Sigmund() = default;
 
@@ -41,15 +43,15 @@ public:
         nextTrackId_ = 0;
         tracks_.clear();
         // Precompute Hann window
-        for (int i = 0; i < FFT_SIZE; ++i) {
+        for (int i = 0; i < FFT_SIZE_SIGMUND; ++i) {
             hannWindow[i] =
-                    0.5f * (1.0f - arm_cos_f32(2.0f * PI * i / (FFT_SIZE - 1)));
+                    0.5f * (1.0f - arm_cos_f32(2.0f * PI * i / (FFT_SIZE_SIGMUND - 1)));
         }
     }
 
     bool processSample(float in) {
         ringBuffer_[bufferIndex_] = in;
-        bufferIndex_              = (bufferIndex_ + 1) & (FFT_SIZE - 1);
+        bufferIndex_              = (bufferIndex_ + 1) & (FFT_SIZE_SIGMUND - 1);
         if ((bufferIndex_ & (kHopSize - 1)) == 0) {
             runFrame();
             return true;
@@ -57,55 +59,37 @@ public:
         return false;
     }
 
-    const std::vector<Track> &getTracks() const { return tracks_; }
+    const std::vector<Track> &getTracks() const {
+        return tracks_;
+    }
 
 private:
     void runFrame() {
         // Window & interleave into complex buffer
         int idx = bufferIndex_;
-        for (int i = 0; i < FFT_SIZE; ++i) {
-            int j              = (idx + i) & (FFT_SIZE - 1);
+        for (int i = 0; i < FFT_SIZE_SIGMUND; ++i) {
+            int j              = (idx + i) & (FFT_SIZE_SIGMUND - 1);
             fftBuf_[2 * i]     = ringBuffer_[j] * hannWindow[i]; // real
             fftBuf_[2 * i + 1] = 0.0f; // imag
         }
 
-        // Complex FFT (in-place)
         arm_cfft_f32(&arm_cfft_sR_f32_len2048, fftBuf_, 0, 1);
 
-        // Magnitude of all FFT_SIZE complex bins
-        arm_cmplx_mag_f32(fftBuf_, mag_, FFT_SIZE);
+        arm_cmplx_mag_f32(fftBuf_, mag_, FFT_SIZE_SIGMUND);
 
-        // Peak detection over the half-spectrum
-        constexpr int half = FFT_SIZE >> 1;
+        constexpr int half = FFT_SIZE_SIGMUND >> 1;
         SpectralPeak  detectedBuf[nPeaks + 1];
         int           detCount = 0;
         int           startBin =
-                std::max(1, (int) std::ceil(minFreqHz * FFT_SIZE / sampleRate_));
-        int hz180Bin =
-                std::max(1, (int) std::ceil(180 * FFT_SIZE / sampleRate_));
-        int hz200Start =
-                std::max(1, (int) std::ceil(180 * FFT_SIZE / sampleRate_));
-        int hz200End =
-                std::max(1, (int) std::ceil(210 * FFT_SIZE / sampleRate_));
-        int hz230Start =
-                std::max(1, (int) std::ceil(220 * FFT_SIZE / sampleRate_));
-        int hz230End =
-                std::max(1, (int) std::ceil(240 * FFT_SIZE / sampleRate_));
-        int hz560Start =
-                std::max(1, (int) std::ceil(550 * FFT_SIZE / sampleRate_));
-        int hz560End =
-                std::max(1, (int) std::ceil(570 * FFT_SIZE / sampleRate_));
+                std::max(1, (int) std::ceil(minFreqHz * FFT_SIZE_SIGMUND / sampleRate_));
         int endBin =
-                std::min(half - 1, (int) std::floor(maxFreqHz * FFT_SIZE / sampleRate_));
+                std::min(half - 1, (int) std::floor(maxFreqHz * FFT_SIZE_SIGMUND / sampleRate_));
 
         for (int i = startBin; i <= endBin; ++i) {
-            float freq = i * (sampleRate_ / FFT_SIZE);
+            float freq = i * (sampleRate_ / FFT_SIZE_SIGMUND);
             float m0   = mag_[i - 1];
             float m1   = mag_[i];
             float m2   = mag_[i + 1];
-            // float wM0   = semitoneWeight((i - 1) * (sampleRate_ / FFT_SIZE));
-            // float wM1   = semitoneWeight(i * (sampleRate_ / FFT_SIZE));
-            // float wM2   = semitoneWeight((i + 1) * (sampleRate_ / FFT_SIZE));
 
             if (m1 > gainThresh && m1 > m0 && m1 > m2) {
                 float denom     = (m0 - 2 * m1 + m2);
@@ -187,13 +171,13 @@ private:
     }
 
     float              sampleRate_;
-    float32_t          fftBuf_[FFT_SIZE * 2];
-    float              mag_[FFT_SIZE];
+    float32_t          fftBuf_[FFT_SIZE_SIGMUND * 2];
+    float              mag_[FFT_SIZE_SIGMUND];
     SpectralPeak       fftPeaks_[nPeaks];
     int                lastDetectedCount = 0;
     int                bufferIndex_      = 0;
-    float              ringBuffer_[FFT_SIZE];
-    float              hannWindow[FFT_SIZE];
+    float              ringBuffer_[FFT_SIZE_SIGMUND];
+    float              hannWindow[FFT_SIZE_SIGMUND];
     int                nextTrackId_ = 0;
     std::vector<Track> tracks_;
 };

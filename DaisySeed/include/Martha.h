@@ -7,6 +7,8 @@
 #include "daisysp.h"
 #include "Sigmund.h"
 
+#define MAX_VOICES 14
+
 using namespace daisysp;
 
 struct RangedParam {
@@ -56,7 +58,7 @@ struct Voice {
         trackId = id;
         amp     = velocity;
         osc.SetFreq(freq);
-        this->freq          = freq;
+        this->freq          = freq * 2.0;
         active              = true;
         gate                = true;
         const float attack  = Params::getRandValue(params.attackRangeMs) * 1e-3f;
@@ -104,18 +106,17 @@ struct Voice {
         float out = osc.Process() * env.Process(gate) * amp * tremLfo.Process();
         if (!env.IsRunning())
             active = false;
-        return out;
+        return out / MAX_VOICES;
     }
 };
 
 class Martha {
 public:
-    explicit Martha(int maxVoices = 32)
-        : maxVoices_(maxVoices) {
+    explicit Martha() {
     }
 
     void init(float sampleRate) {
-        voices_.resize(maxVoices_);
+        voices_.resize(MAX_VOICES);
         for (auto &v: voices_)
             v.init(sampleRate, params_);
     }
@@ -163,24 +164,21 @@ public:
 
 private:
     int allocateVoice() const {
-        for (int i = 0; i < maxVoices_; ++i)
+        for (int i = 0; i < MAX_VOICES; ++i)
             if (!voices_[i].active)
                 return i;
         return -1;
     }
-
-    const int maxVoices_;
-
+    
     std::vector<Voice> voices_;
     Params             params_ = {
-        0.4f,
-        {10, 20},
-        {200, 1000},
-        {0.25, 10},
-        {-3, 0.5},
-        {20, 10},
-        {20, 200}
-
+        0.6f,
+        {2, 100},
+        {400, 900},
+        {0.25, 100},
+        {0, 0},
+        {200, 500},
+        {1000, 1500}
     };
 };
 

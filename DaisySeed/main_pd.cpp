@@ -1,13 +1,13 @@
 #include "daisy_seed.h"
 #include "daisysp.h"
-#include "include/max98389.h"
 #include "include/filterUtility.h"
+#include "include/max98389.h"
 #include "include/RMSController.h"
-#include "include/Martha.h"
-#include "include/Sigmund.h"
+#include "include/ShySpectralDelay.h"
+#include "lib/DaisySP/Source/Utility/dsp.h"
 
-#define PRINT_DECIMATION 5000
-#define BOOT_RAMP_UP_SECS 7
+#define PRINT_DECIMATION 1024 // Print one value every 512 samples
+#define BOOT_RAMP_UP_SECS 4
 
 using namespace daisysp;
 using namespace daisy;
@@ -15,20 +15,11 @@ using namespace daisy;
 DaisySeed hardware;
 
 max98389                    amp;
-BiQuad *                    deRumble1;
-BiQuad *                    deRumble2;
-BiQuad *                    shelf_hp_250;
-BiQuad *                    notch_220;
-BiQuad *                    body_filter;
 float                       bootRampUpGain      = 0.f;
 float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
-int                         sample_counter    = 0;
-static Sigmund              sigmund;
-static Martha               martha;
-static RmsTrackerController rmsCtrl(0.6f, 200, 0.01, 0, 0.f, 0.2f);
-int                         peakCoutner = 0;
+static RmsTrackerController rmsCtrl(0.9f, 200, 0.01, 0, 0.f, 0.7f);
 
 void ledErrorPulse(int n) {
     for (int i = 0; i < n; i++) {
@@ -42,31 +33,17 @@ void ledErrorPulse(int n) {
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
     float ampOut   = 0.0;
     bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
-
     for (size_t i = 0; i < size; i++) {
-        float stringIn = in[0][i];
+        float stringIn   = in[0][i];
+        float pureDataIn = in[1][i];
         stringIn *= bootRampUpGain;
-        const bool update = sigmund.processSample(stringIn);
-        if (update) {
-            martha.processTracks(sigmund.getTracks());
-        }
-        float marthaOut = martha.render();
-        float gain      = rmsCtrl.processSample(marthaOut);
-        ampOut          = marthaOut * gain;
-        out[0][i]       = ampOut;
-        out[1][i]       = stringIn;
-        out[2][i]       = 0;
-        // if (++sample_counter >= PRINT_DECIMATION)
-        // {
-        //     sample_counter = 0;
-        //     if (sigmund.getTracks().size() > peakCoutner) {
-        //         hardware.PrintLine(FLT_FMT(0) ":" FLT_FMT(8) , FLT_VAR(1, peakCoutner), FLT_VAR(8, sigmund.getTracks()[peakCoutner].freq));
-        //     }
-        //     peakCoutner++;
-        //     if (peakCoutner == 18) {
-        //         peakCoutner = 0;
-        //     }
-        // }
+        pureDataIn *= bootRampUpGain;
+
+        float gain = rmsCtrl.processSample(pureDataIn);
+        ampOut     = pureDataIn * gain;
+        out[0][i]  = ampOut;
+        out[1][i]  = stringIn;
+        out[2][i]  = ampOut;
     }
 }
 
@@ -86,7 +63,7 @@ int main(void) {
     }
 
     SaiHandle         external_sai_handle;
-    SaiHandle::Config external_sai_cfg{};
+    SaiHandle::Config external_sai_cfg;
     external_sai_cfg.periph          = SaiHandle::Config::Peripheral::SAI_2;
     external_sai_cfg.sr              = SaiHandle::Config::SampleRate::SAI_48KHZ;
     external_sai_cfg.bit_depth       = SaiHandle::Config::BitDepth::SAI_16BIT;
@@ -109,25 +86,14 @@ int main(void) {
     }
 
     AudioHandle::Config audio_cfg;
-    audio_cfg.blocksize  = 256;
+    audio_cfg.blocksize  = 128;
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
 
-    body_filter = new BiQuad(hardware.AudioSampleRate());
-    body_filter->setCoefficients(-1.9982182418079835, 0.9984566369359177, 0.9992283184679588, -1.9982182418079835,
-                                 0.9992283184679588);
-    notch_220 = new BiQuad(hardware.AudioSampleRate());
-    notch_220->setCoefficients(-1.9962966728219715, 0.9971247442620121, 0.9985623721310061, -1.9962966728219715,
-                               0.9985623721310061
-    );
-
-
     bootRampUpSamples   = BOOT_RAMP_UP_SECS * hardware.AudioSampleRate();
     bootRampUpIncrement = 1.f / (float) bootRampUpSamples * hardware.AudioBlockSize();
 
-    sigmund.init(hardware.AudioSampleRate());
-    martha.init(hardware.AudioSampleRate());
     hardware.StartAudio(AudioCallback);
     hardware.SetLed(true);
 
