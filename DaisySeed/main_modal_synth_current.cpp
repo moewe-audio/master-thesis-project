@@ -23,9 +23,11 @@ float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
 Modal                       banjoModes[BANJO_FILTER.numModes];
-static RmsTrackerController rmsCtrl(0.3, 20, 0.015, 0.0, 0.0, 0.35f,SAMPLE_RATE);
+static RmsTrackerController rmsCtrl(0.3, 150, 0.015, 0.0, 0.0, 0.43f,SAMPLE_RATE);
 static StringWaveguide      sympethaticStrings[NUM_SYMPETHATICS];
 static BiQuad               highpass;
+static BiQuad               current_highpass;
+static ModalBPFilter        bpModal;
 
 void ledErrorPulse(int n) {
     for (int i = 0; i < n; i++) {
@@ -40,19 +42,23 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     bootRampUpGain = fclamp(bootRampUpGain + bootRampUpIncrement, 0.f, 1.f);
     for (size_t i = 0; i < size; i++) {
         float piezoIn   = in[0][i];
+        float currentIn = in[2][i];
         piezoIn *= bootRampUpGain;
+        currentIn *= bootRampUpGain;
         piezoIn           = highpass.process(piezoIn);
+        currentIn         = current_highpass.process(currentIn);
         float modalOut    = 0;
         float stringOut   = 0;
         float softClipped = std::tanh(0.4f * piezoIn);
         for (int str = 0; str < NUM_SYMPETHATICS; str++) {
-            piezoIn += sympethaticStrings[str].Process((softClipped)) * (1.f / NUM_SYMPETHATICS);
+            stringOut += sympethaticStrings[str].Process((softClipped)) * (1.f / NUM_SYMPETHATICS);
         }
         for (int m = 0; m < BANJO_FILTER.numModes; m++) {
-            modalOut += banjoModes[m].process(1.3*piezoIn);
+            // modalOut += banjoModes[m].process(currentIn);
         }
-        modalOut -= 1.3*piezoIn;
-        float summed = modalOut;
+        modalOut = (-1.5f) * bpModal.process(stringOut);
+        modalOut -= (-1.5f) * currentIn;
+        float summed = modalOut + stringOut;
         float gain   = rmsCtrl.processSample(summed);
         float ampOut = gain * summed;
         out[0][i]    = piezoIn;
@@ -100,7 +106,7 @@ int main(void) {
     }
 
     AudioHandle::Config audio_cfg;
-    audio_cfg.blocksize  = 4;
+    audio_cfg.blocksize  = 32;
     audio_cfg.samplerate = SaiHandle::Config::SampleRate::SAI_48KHZ;
     audio_cfg.postgain   = 1.f;
     hardware.audio_handle.Init(audio_cfg, hardware.AudioSaiHandle(), external_sai_handle);
@@ -111,11 +117,15 @@ int main(void) {
         banjoModes[m].init(BANJO_FILTER.model[m].f0, BANJO_FILTER.model[m].Q, SAMPLE_RATE);
     }
 
+    bpModal.init();
 
-    InitSympatheticStrings(sympethaticStrings, NUM_SYMPETHATICS, 110, 0.8, 0.9907f, 0.9998);
+    InitSympatheticStrings(sympethaticStrings, NUM_SYMPETHATICS, 110, 0.8, 0.9937f, 0.9998);
 
     highpass.setCoefficients(-1.9847443991453215, 0.9848598860490441, 0.9924010712985913, -1.9848021425971827,
                              0.9924010712985913);
+
+    current_highpass.setCoefficients(-1.9847443991453215, 0.9848598860490441, 0.9924010712985913, -1.9848021425971827,
+                            0.9924010712985913);
 
     hardware.StartAudio(AudioCallback);
     hardware.SetLed(true);
