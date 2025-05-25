@@ -16,20 +16,19 @@ struct ModalFilter {
 };
 
 struct Modal {
-    double r,      cosθ, gain;
+    double r,      cosTheta, gain;
     double y1 = 0, y2 = 0;
 
     void init(double f0, double Q, double fs) {
         r        = exp(-M_PI * f0 / (Q * fs));
-        double θ = 2 * M_PI * f0 / fs;
-        cosθ     = cos(θ);
-        // this ensures unity gain at f0:
+        double theta = 2 * M_PI * f0 / fs;
+        cosTheta     = cos(theta);
         gain = (1.0 - r);
     }
 
     float process(float x) {
         // y[n] = 2⋅r⋅cosθ⋅y[n-1] − r²⋅y[n-2] + gain⋅x[n]
-        double y0 = 2.0 * r * cosθ * y1
+        double y0 = 2.0 * r * cosTheta * y1
                     - r * r * y2
                     + gain * x;
         y2 = y1;

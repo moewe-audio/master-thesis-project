@@ -1,4 +1,5 @@
 // fourier.h
+// Source: https://github.com/hemmer/DaisySTFT/tree/621175580772295202228f0b67016b85066c9592
 #ifndef FOURIER
 
 #include "wave.h"

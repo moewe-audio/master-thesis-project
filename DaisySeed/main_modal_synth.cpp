@@ -23,7 +23,7 @@ float                       bootRampUpIncrement = 0.f;
 int                         bootRampUpSamples;
 int                         bootRampUpCounter = 0;
 Modal                       banjoModes[BANJO_FILTER.numModes];
-static RmsTrackerController rmsCtrl(0.3, 20, 0.015, 0.0, 0.0, 0.4f,SAMPLE_RATE);
+static RmsTrackerController rmsCtrl(0.4, 20, 0.015, 0.0, 0.0, 0.4f,SAMPLE_RATE);
 static StringWaveguide      sympethaticStrings[NUM_SYMPETHATICS];
 static BiQuad               highpass;
 
@@ -48,7 +48,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         for (int str = 0; str < NUM_SYMPETHATICS; str++) {
             stringOut += sympethaticStrings[str].Process((softClipped)) * (1.f / NUM_SYMPETHATICS);
         }
-        for (int m = 0; m < BANJO_FILTER.numModes; m++) {
+        for (int m = 0; m < BANJO_FILTE R.numModes; m++) {
             modalOut += banjoModes[m].process(1.2f * softClipped);
         }
         modalOut -= 1.2f * softClipped;

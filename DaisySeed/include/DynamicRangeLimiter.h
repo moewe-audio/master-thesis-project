@@ -5,10 +5,6 @@
 
 class DynamicRangeLimiter {
 public:
-    /// @param thresholdRms   Maximum allowed level (in the same units as your signal)
-    /// @param attackTimeMs   Attack time in milliseconds (fast)
-    /// @param releaseTimeMs  Release time in milliseconds (slower than attack)
-    /// @param sampleRate     Sampling rate in Hz
     DynamicRangeLimiter(float thresholdRms,
                         float attackTimeMs,
                         float releaseTimeMs,

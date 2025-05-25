@@ -1,9 +1,9 @@
 #ifndef SIGMUND_H
 #define SIGMUND_H
 
-#include "arm_const_structs.h" // for arm_cfft_sR_f32_len1024
+#include "arm_const_structs.h"
 #include "arm_math.h"
-#include <cmath> // for std::ceil, std::floor
+#include <cmath>
 #include <vector>
 
 #define FFT_SIZE_SIGMUND 4096
@@ -65,11 +65,10 @@ public:
 
 private:
     void runFrame() {
-        // Window & interleave into complex buffer
         int idx = bufferIndex_;
         for (int i = 0; i < FFT_SIZE_SIGMUND; ++i) {
             int j              = (idx + i) & (FFT_SIZE_SIGMUND - 1);
-            fftBuf_[2 * i]     = ringBuffer_[j] * hannWindow[i]; // real
+            fftBuf_[2 * i]     = ringBuffer_[j] * hannWindow[i];
             fftBuf_[2 * i + 1] = 0.0f; // imag
         }
 

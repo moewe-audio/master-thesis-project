@@ -1,4 +1,4 @@
-#N canvas 376 159 1136 616 12;
+#N canvas 376 128 1136 616 12;
 #N canvas 0 22 592 473 output 0;
 #X obj 370 277 *~;
 #X obj 362 306 dac~;
@@ -21,7 +21,7 @@
 #X connect 7 0 0 0;
 #X connect 8 0 9 0;
 #X coords 0 -1 1 1 100 200 1 100 100;
-#X restore 113 406 pd output;
+#X restore 115 406 pd output;
 #X text 304 268 <<<< See inside for control messages;
 #X text 211 392 Creation arguments;
 #X text 211 412 \$1: -npeak value used for the attached sigmund~;

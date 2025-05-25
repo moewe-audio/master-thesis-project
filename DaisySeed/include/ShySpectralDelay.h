@@ -50,8 +50,6 @@ public:
     }
 
 private:
-    // callback is called once per full STFT frame:
-    // inData[0..FFT_SIZE/2-1] = real bins, inData[FFT_SIZE/2..FFT_SIZE-1] = imag bins
     static void processor(const float *inData, float *outData) {
         static int           head      = 0;
         static bool          inited    = false;
@@ -94,8 +92,8 @@ private:
                 int   i    = k - minFxBin;
                 float norm = float(i) / numFxBins;           // 0…1
 
-                baseDelay[i] = 20;             // now in [0…50] frames
-                depth    [i] = norm * 20;     // e.g. depth=norm*10 for ±10-frame swing
+                baseDelay[i] = 20;
+                depth    [i] = norm * 20;
             }
 
             inited = true;
@@ -109,7 +107,7 @@ private:
         for (int k = minFxBin; k <= maxFxBin; ++k) {
             int   i = k - minFxBin;
             float  m    = depth[i] * sin(sinPhi*cosOffset[i] + cosPhi*sinOffset[i]);
-            float  D    = baseDelay[i] + m;                 // still in frames
+            float  D    = baseDelay[i] + m;
             int    d0   = int(floorf(D));
             delayDist[k]  = d0;
         }
